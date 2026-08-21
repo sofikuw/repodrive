@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-  <meta name="theme-color" content="#0d1117">
+  <meta name="theme-color" content="#081012">
   <meta name="description" content="RepoDrive — The Ultimate Cloud Storage Powered by GitHub">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./assets/logo-mark.png">
   <title>RepoDrive 0.1.5</title>
-  <link rel="stylesheet" href="./styles.css?v=0.1.5.1">
+  <link rel="stylesheet" href="./styles.css?v=0.1.5.3">
 </head>
 <body>
   <!-- Notification Permission -->
@@ -47,6 +47,7 @@
         <h1>Cloud storage <br><span class="gradient-text">redefined.</span></h1>
         <p>Enterprise-grade cloud storage built on GitHub. <br>Upload, organize, share, collaborate, and automate — all from one place.</p>
         <button id="loginBtn" class="primary-btn big pulse"><span class="gh">◉</span> Continue with GitHub <span>→</span></button>
+        <label class="session-option"><input id="rememberSession" type="checkbox"> <span><strong>Save session on this device</strong><small>Stay signed in so you don't need to authorize again on every visit.</small></span></label>
         <div id="loginHint" class="hint"></div>
         <div class="security glass">
           <b>🔒 End-to-end encryption available</b>
@@ -388,15 +389,15 @@
     <div class="dialog-header">
       <h3 id="previewTitle">File Preview</h3>
       <div>
-        <button id="downloadPreview" class="icon-btn" title="Download">📥</button>
-        <button id="sharePreview" class="icon-btn" title="Share">🔗</button>
-        <button id="historyPreview" class="icon-btn" title="History">🕒</button>
-        <button id="closePreview" class="icon-btn">✕</button>
+        <button type="button" id="downloadPreview" class="icon-btn" title="Download">📥</button>
+        <button type="button" id="sharePreview" class="icon-btn" title="Share">🔗</button>
+        <button type="button" id="historyPreview" class="icon-btn" title="History">🕒</button>
+        <button type="button" id="closePreview" class="icon-btn" title="Close preview">✕</button>
       </div>
     </div>
     <div id="previewContent"></div>
     <div class="dialog-actions">
-      <button id="closePreviewBtn" class="primary-btn">Close</button>
+      <button type="button" id="closePreviewBtn" class="primary-btn">Close</button>
     </div>
   </div></dialog>
 
@@ -537,6 +538,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="./config.js"></script>
-  <script src="./app.js?v=0.1.5.1"></script>
+  <script src="./app.js?v=0.1.5.2"></script>
 </body>
 </html>

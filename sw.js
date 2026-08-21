@@ -1,4 +1,4 @@
-const CACHE = "repodrive-0.1.5.1";
+const CACHE = "repodrive-0.1.5.2";
 self.addEventListener("install", event => {
   self.skipWaiting();
 });

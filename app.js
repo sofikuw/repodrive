@@ -15,6 +15,7 @@
     appView: $('appView'),
     loginBtn: $('loginBtn'),
     loginHint: $('loginHint'),
+    rememberSession: $('rememberSession'),
     account: $('account'),
     logoutBtn: $('logoutBtn'),
     refreshBtn: $('refreshBtn'),
@@ -77,10 +78,10 @@
     workspaceTitle: $('workspaceTitle'),
     syncStatus: $('syncStatus'),
     themeToggle: $('themeToggle'),
-    searchToggle: $('searchToggle'),
     globalSearchBar: $('globalSearchBar'),
     globalSearch: $('globalSearch'),
     globalSearchBtn: $('globalSearchBtn'),
+    globalSearchExecute: $('globalSearchExecute'),
     viewToggle: $('viewToggle'),
     showFavorites: $('showFavorites'),
     showRecent: $('showRecent'),
@@ -167,6 +168,10 @@
   let viewMode = 'list';
   let showHiddenFiles = false;
   let currentPreviewFile = null;
+  let currentPreviewData = null;
+  let previewObjectUrl = null;
+  const SESSION_KEY = 'repodrive_session';
+  const REMEMBER_KEY = 'repodrive_remember_session';
 
   // Utility Functions
   function loadRules() {
@@ -268,7 +273,7 @@
 
   // Theme Management
   function initTheme() {
-    const savedTheme = localStorage.getItem('repodrive_theme') || 'light';
+    const savedTheme = localStorage.getItem('repodrive_theme') || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
     els.themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
   }
@@ -318,6 +323,7 @@
       token = d.access_token;
       refreshToken = d.refresh_token || refreshToken;
       tokenExpiresAt = d.expires_in ? Date.now() + d.expires_in * 1000 : 0;
+      persistSession();
       return true;
     } catch {
       clearSession();
@@ -325,11 +331,48 @@
     }
   }
 
-  function clearSession() {
+  function persistSession() {
+    if (!els.rememberSession?.checked || !token) return;
+    localStorage.setItem(REMEMBER_KEY, '1');
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      access_token: token,
+      refresh_token: refreshToken,
+      expires_at: tokenExpiresAt,
+      saved_at: Date.now()
+    }));
+  }
+
+  function forgetSavedSession() {
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(REMEMBER_KEY);
+  }
+
+  function clearSession(removeSaved = true) {
     token = null;
     refreshToken = null;
     tokenExpiresAt = 0;
     me = null;
+    if (removeSaved) forgetSavedSession();
+  }
+
+  async function restoreSavedSession() {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw || localStorage.getItem(REMEMBER_KEY) !== '1') return false;
+    try {
+      const saved = JSON.parse(raw);
+      if (!saved?.access_token) throw new Error('Invalid saved session');
+      token = saved.access_token;
+      refreshToken = saved.refresh_token || null;
+      tokenExpiresAt = Number(saved.expires_at) || 0;
+      if (tokenExpiresAt && Date.now() >= tokenExpiresAt - 30000) {
+        if (!(await refresh())) return false;
+      }
+      await afterLogin();
+      return Boolean(token);
+    } catch {
+      clearSession();
+      return false;
+    }
   }
 
   // Authentication
@@ -367,6 +410,7 @@
           token = x.access_token;
           refreshToken = x.refresh_token || null;
           tokenExpiresAt = x.expires_in ? Date.now() + x.expires_in * 1000 : 0;
+          persistSession();
           els.authDialog.close();
           await afterLogin();
           return;
@@ -822,51 +866,147 @@
   }
 
   // File Preview
+  const PREVIEW_MIME = {
+    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
+    avif: 'image/avif', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon', tif: 'image/tiff', tiff: 'image/tiff',
+    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/mp4', ogv: 'video/ogg',
+    mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg',
+    pdf: 'application/pdf', json: 'application/json', csv: 'text/csv', txt: 'text/plain', md: 'text/markdown',
+    html: 'text/html', css: 'text/css', js: 'text/javascript', ts: 'text/typescript', xml: 'application/xml',
+    yaml: 'text/yaml', yml: 'text/yaml', toml: 'text/plain', sh: 'text/plain', bash: 'text/plain', log: 'text/plain',
+    py: 'text/x-python', java: 'text/x-java', c: 'text/plain', cpp: 'text/plain', h: 'text/plain', go: 'text/plain',
+    rs: 'text/plain', rb: 'text/plain', php: 'text/plain', sql: 'text/plain'
+  };
+
+  function previewMime(path) {
+    return PREVIEW_MIME[getFileExtension(path)] || 'application/octet-stream';
+  }
+
+  function revokePreviewUrl() {
+    if (previewObjectUrl) {
+      URL.revokeObjectURL(previewObjectUrl);
+      previewObjectUrl = null;
+    }
+  }
+
+  function base64Blob(content, mime) {
+    const clean = String(content || '').replace(/\s/g, '');
+    const binary = atob(clean);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    return new Blob([bytes], { type: mime });
+  }
+
+  async function getPreviewBlob(data, mime) {
+    // Small files are normally returned directly by the Contents API.
+    if (data?.content && data.encoding === 'base64') return base64Blob(data.content, mime);
+    if (!data?.download_url) throw new Error('GitHub did not provide a downloadable file URL.');
+    const res = await fetch(data.download_url, {
+      headers: { Authorization: `Bearer ${token}`, Accept: 'application/octet-stream' }
+    });
+    if (!res.ok) throw new Error(`Could not download preview (${res.status}).`);
+    return await res.blob();
+  }
+
+  async function previewText(data) {
+    if (data?.content && data.encoding === 'base64') {
+      const buf = await base64Blob(data.content, 'application/octet-stream').arrayBuffer();
+      return new TextDecoder().decode(buf);
+    }
+    if (!data?.download_url) throw new Error('GitHub did not provide a downloadable file URL.');
+    const res = await fetch(data.download_url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(`Could not download text (${res.status}).`);
+    return await res.text();
+  }
+
+  function closePreview() {
+    revokePreviewUrl();
+    currentPreviewFile = null;
+    currentPreviewData = null;
+    if (els.previewModal?.open) els.previewModal.close();
+  }
+  async function downloadPreviewFile() {
+    if (!currentPreviewData) return;
+    try {
+      const blob = await getPreviewBlob(currentPreviewData, previewMime(currentPreviewFile || 'file.bin'));
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = (currentPreviewFile || 'download').split('/').pop();
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) {
+      toast('Download failed: ' + e.message, 'error');
+    }
+  }
+
+
   async function previewFile(path) {
     if (!selected) return;
     const branch = els.branchSelect.value;
     currentPreviewFile = path;
+    currentPreviewData = null;
+    revokePreviewUrl();
     els.previewTitle.textContent = path;
     els.previewContent.innerHTML = '<div class="empty">Loading preview…</div>';
     els.previewModal.showModal();
-    
+
     try {
       const data = await api(`/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`);
-      
-      // Handle file type
+      currentPreviewData = data;
       const ext = getFileExtension(path);
-      
-      if (isImageFile(path)) {
-        // Check if content is base64
-        const content = data.content;
-        els.previewContent.innerHTML = `<img src="data:image/${ext};base64,${content}" style="max-width:100%;max-height:80vh;border-radius:8px;" alt="${escapeHtml(path)}">`;
-      } else if (isVideoFile(path)) {
-        const content = data.content;
-        els.previewContent.innerHTML = `<video controls style="max-width:100%;max-height:80vh;border-radius:8px;"><source src="data:video/${ext};base64,${content}" type="video/${ext}"></video>`;
-      } else if (isAudioFile(path)) {
-        const content = data.content;
-        els.previewContent.innerHTML = `<audio controls style="width:100%;"><source src="data:audio/${ext};base64,${content}" type="audio/${ext}"></audio>`;
-      } else if (isTextFile(path) || path.endsWith('.md') || path.endsWith('.json')) {
-        const content = atob(data.content);
-        // Check if it's markdown or needs special rendering
-        if (path.endsWith('.md')) {
-          els.previewContent.innerHTML = `<div class="markdown-body">${escapeHtml(content)}</div>`;
+      const mime = previewMime(path);
+
+      if (isTextFile(path) || ['md', 'json', 'csv', 'xml', 'yaml', 'yml', 'toml', 'log'].includes(ext)) {
+        const content = await previewText(data);
+        const safe = escapeHtml(content);
+        if (ext === 'md') {
+          els.previewContent.innerHTML = `<div class="markdown-body preview-text">${safe}</div>`;
         } else {
-          els.previewContent.innerHTML = `<pre style="white-space:pre-wrap;max-height:70vh;overflow:auto;background:var(--bg-secondary);padding:16px;border-radius:8px;font-family:var(--mono);font-size:13px;">${escapeHtml(content)}</pre>`;
+          els.previewContent.innerHTML = `<pre class="preview-text">${safe}</pre>`;
         }
-      } else if (ext === 'pdf') {
-        const content = data.content;
-        els.previewContent.innerHTML = `<embed src="data:application/pdf;base64,${content}" type="application/pdf" style="width:100%;height:80vh;border-radius:8px;">`;
-      } else {
-        els.previewContent.innerHTML = `
-          <div class="empty">
-            <p>Preview not available for .${ext} files.</p>
-            <a href="${data.download_url}" download class="primary-btn">📥 Download file</a>
-          </div>
-        `;
+        return;
       }
+
+      if (['image', 'video', 'audio'].some(kind => ({ image: isImageFile(path), video: isVideoFile(path), audio: isAudioFile(path) }[kind]))) {
+        const blob = await getPreviewBlob(data, mime);
+        previewObjectUrl = URL.createObjectURL(blob);
+        const tag = isImageFile(path) ? 'img' : isVideoFile(path) ? 'video' : 'audio';
+        if (tag === 'img') {
+          els.previewContent.innerHTML = `<img src="${previewObjectUrl}" alt="${escapeHtml(path)}">`;
+        } else if (tag === 'video') {
+          els.previewContent.innerHTML = `<video controls playsinline src="${previewObjectUrl}"></video>`;
+        } else {
+          els.previewContent.innerHTML = `<audio controls src="${previewObjectUrl}"></audio>`;
+        }
+        return;
+      }
+
+      if (ext === 'pdf') {
+        const blob = await getPreviewBlob(data, mime);
+        previewObjectUrl = URL.createObjectURL(blob);
+        els.previewContent.innerHTML = `<iframe src="${previewObjectUrl}" title="PDF preview"></iframe>`;
+        return;
+      }
+
+      const office = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf'];
+      const archive = ['zip', '7z', 'rar', 'tar', 'gz', 'bz2', 'xz'];
+      let note = 'This file type cannot be rendered directly in the browser.';
+      if (office.includes(ext)) note = 'Office/OpenDocument preview needs a dedicated document renderer. Download the file to open it safely.';
+      if (archive.includes(ext)) note = 'Archive contents are not rendered in the browser. Download the archive to inspect it.';
+      els.previewContent.innerHTML = `
+        <div class="preview-info">
+          <div style="font-size:42px">📄</div>
+          <strong>${escapeHtml(path)}</strong>
+          <div class="preview-format">.${escapeHtml(ext)} · ${escapeHtml(note)}</div>
+          <div class="preview-actions">
+            <a href="${escapeHtml(data.download_url || '#')}" class="primary-btn" target="_blank" rel="noopener">📥 Download / Open</a>
+          </div>
+        </div>`;
     } catch (e) {
-      els.previewContent.innerHTML = `<div class="empty error">Could not preview: ${escapeHtml(e.message)}</div>`;
+      els.previewContent.innerHTML = `<div class="preview-info"><strong>Preview failed</strong><div class="preview-format">${escapeHtml(e.message)}</div></div>`;
     }
   }
 
@@ -1368,18 +1508,27 @@ jobs:
   }
 
   // Boot
-  function boot() {
+  async function boot() {
     updateRuleCount();
     initTheme();
+    els.rememberSession.checked = localStorage.getItem(REMEMBER_KEY) === '1';
     if (!configured()) els.loginHint.textContent = 'Setup required: put your GitHub App Client ID in config.js, then redeploy.';
-    
-    // Check if we have a saved session
-    if (localStorage.getItem('repodrive_session')) {
-      // Session recovery logic
+    if (els.rememberSession.checked) {
+      els.loginHint.textContent = 'Saved session found. Restoring GitHub connection…';
+      const restored = await restoreSavedSession();
+      if (restored) toast('🔐 GitHub session restored.', 'good');
     }
   }
 
   // Event Listeners
+  els.rememberSession.addEventListener('change', () => {
+    if (els.rememberSession.checked) {
+      localStorage.setItem(REMEMBER_KEY, '1');
+      persistSession();
+    } else {
+      forgetSavedSession();
+    }
+  });
   els.loginBtn.addEventListener('click', login);
   els.cancelAuth.addEventListener('click', () => { authAbort?.abort(); els.authDialog.close(); });
   els.copyCode.addEventListener('click', async () => {
@@ -1388,7 +1537,7 @@ jobs:
       toast('Code copied.', 'good');
     } catch { toast('Copy failed.', 'error'); }
   });
-  els.logoutBtn.addEventListener('click', () => { clearSession(); location.reload(); });
+  els.logoutBtn.addEventListener('click', () => { clearSession(true); location.reload(); });
   els.refreshBtn.addEventListener('click', loadRepos);
   els.installBtn.addEventListener('click', () => window.open(installUrl(), '_blank', 'noopener'));
   els.reloadReposBtn.addEventListener('click', loadRepos);
@@ -1450,12 +1599,12 @@ jobs:
   });
   
   els.themeToggle.addEventListener('click', toggleTheme);
-  els.searchToggle.addEventListener('click', () => {
+  els.globalSearch.addEventListener('keydown', e => { if (e.key === 'Enter') globalSearch(e.target.value); });
+  els.globalSearchBtn.addEventListener('click', () => {
     els.globalSearchBar.classList.toggle('hidden');
     if (!els.globalSearchBar.classList.contains('hidden')) els.globalSearch.focus();
   });
-  els.globalSearch.addEventListener('keydown', e => { if (e.key === 'Enter') globalSearch(e.target.value); });
-  els.globalSearchBtn.addEventListener('click', () => globalSearch(els.globalSearch.value));
+  els.globalSearchExecute.addEventListener('click', () => globalSearch(els.globalSearch.value));
   
   els.viewToggle.addEventListener('click', () => {
     viewMode = viewMode === 'list' ? 'grid' : 'list';
@@ -1475,14 +1624,12 @@ jobs:
   });
   
   // Preview modal events
-  els.closePreview.addEventListener('click', () => els.previewModal.close());
-  els.closePreviewBtn.addEventListener('click', () => els.previewModal.close());
-  els.downloadPreview.addEventListener('click', () => {
-    if (currentPreviewFile) {
-      const url = getShareableLink(currentPreviewFile);
-      window.open(url, '_blank');
-    }
-  });
+  els.closePreview.addEventListener('click', closePreview);
+  els.closePreviewBtn.addEventListener('click', closePreview);
+  els.previewModal.addEventListener('cancel', e => { e.preventDefault(); closePreview(); });
+  els.previewModal.addEventListener('click', e => { if (e.target === els.previewModal) closePreview(); });
+  els.previewModal.addEventListener('close', revokePreviewUrl);
+  els.downloadPreview.addEventListener('click', downloadPreviewFile);
   els.sharePreview.addEventListener('click', () => {
     if (currentPreviewFile) shareFile(currentPreviewFile);
   });
