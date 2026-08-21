@@ -9,8 +9,8 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./assets/logo-mark.png">
-  <title>RepoDrive 0.1.5</title>
-  <link rel="stylesheet" href="./styles.css?v=0.1.5.3">
+  <title>RepoDrive 0.1.5 · Cloud Explorer</title>
+  <link rel="stylesheet" href="./styles.css?v=0.1.5.4-explorer">
 </head>
 <body>
   <!-- Notification Permission -->
@@ -150,6 +150,74 @@
           <button onclick="generateReport()">📋 Generate Report</button>
           <button onclick="showKeyboardShortcuts()">⌨️ Keyboard Shortcuts</button>
         </div>
+
+
+          <!-- RepoDrive Cloud Explorer: Mixplorer-inspired file-manager workspace -->
+          <section id="cloudExplorer" class="cloud-explorer">
+            <aside class="drive-sidebar">
+              <div class="drive-side-head">
+                <div class="drive-caption">CLOUD STORAGE</div>
+                <button id="driveNewRepo" class="drive-icon" title="New repository">＋</button>
+              </div>
+              <div class="drive-search-wrap">
+                <span>⌕</span><input id="driveRepoSearch" placeholder="Filter repositories…" autocomplete="off">
+              </div>
+              <div class="drive-side-section">
+                <div class="drive-side-label">MY REPOSITORIES <span id="driveRepoCount">0</span></div>
+                <div id="driveRepoList" class="drive-repo-list"></div>
+              </div>
+              <div class="drive-side-footer">
+                <div class="drive-user"><span class="drive-avatar" id="driveAvatar">?</span><div><b id="driveUserName">GitHub</b><small id="driveUserMeta">Connected</small></div></div>
+                <button id="driveSignOut" class="drive-footer-btn">Sign out</button>
+              </div>
+            </aside>
+
+            <section class="drive-main">
+              <div class="drive-toolbar">
+                <div class="drive-breadcrumbs" id="driveBreadcrumbs"></div>
+                <div class="drive-toolbar-actions">
+                  <button id="driveBack" class="drive-icon" title="Back">‹</button>
+                  <button id="driveUp" class="drive-icon" title="Parent folder">↑</button>
+                  <button id="driveRefresh" class="drive-icon" title="Refresh">⟳</button>
+                  <button id="driveView" class="drive-icon" title="Toggle view">☷</button>
+                  <button id="driveUpload" class="drive-primary">＋ Upload</button>
+                  <button id="driveMore" class="drive-icon" title="More actions">⋮</button>
+                </div>
+              </div>
+
+              <div class="drive-location">
+                <div>
+                  <div class="drive-location-title" id="driveRepoTitle">Select a repository</div>
+                  <div class="drive-location-meta" id="driveRepoMeta">Your GitHub repositories appear here like cloud drives.</div>
+                </div>
+                <div class="drive-location-actions">
+                  <button id="driveOpenGithub" class="drive-btn" disabled>↗ GitHub</button>
+                  <button id="driveShareRepo" class="drive-btn" disabled>⌯ Share</button>
+                </div>
+              </div>
+
+              <div id="driveDropZone" class="drive-drop-zone">
+                <div class="drive-drop-icon">⇧</div>
+                <div><b>Drop files here</b><span>Files are staged locally, then committed to GitHub.</span></div>
+              </div>
+
+              <div class="drive-file-toolbar">
+                <div class="drive-folder-title"><span id="drivePathIcon">⌂</span><b id="drivePathLabel">Repository root</b><span id="driveItemCount">0 items</span></div>
+                <div class="drive-file-actions">
+                  <input id="driveFileSearch" placeholder="Search this folder…" autocomplete="off">
+                  <select id="driveSort"><option value="name">Name</option><option value="type">Type</option><option value="size">Size</option><option value="recent">Recent</option></select>
+                  <button id="driveSelectAll" class="drive-btn">Select all</button>
+                </div>
+              </div>
+
+              <div id="driveFileGrid" class="drive-file-grid"></div>
+              <div id="driveEmpty" class="drive-empty hidden"><div class="drive-empty-icon">⌂</div><b>This folder is empty</b><span>Upload files to this repository to get started.</span><button id="driveEmptyUpload" class="drive-primary">＋ Upload files</button></div>
+
+              <div class="drive-statusbar">
+                <span id="driveStorageStatus">—</span><span>•</span><span id="driveBranchStatus">—</span><span>•</span><span id="driveSyncStatus">Ready</span>
+              </div>
+            </section>
+          </section>
 
         <!-- Repository Selection -->
         <div class="repo-section glass">
@@ -538,6 +606,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="./config.js"></script>
-  <script src="./app.js?v=0.1.5.2"></script>
+  <script src="./app.js?v=0.1.5.4-explorer"></script>
 </body>
 </html>

@@ -144,7 +144,38 @@
     viewAnalytics: $('viewAnalytics'),
     webdavMount: $('webdavMount'),
     exportPending: $('exportPending'),
-    toast: $('toast')
+    toast: $('toast'),
+    driveRepoSearch: $('driveRepoSearch'),
+    driveRepoList: $('driveRepoList'),
+    driveRepoCount: $('driveRepoCount'),
+    driveAvatar: $('driveAvatar'),
+    driveUserName: $('driveUserName'),
+    driveUserMeta: $('driveUserMeta'),
+    driveNewRepo: $('driveNewRepo'),
+    driveSignOut: $('driveSignOut'),
+    driveBreadcrumbs: $('driveBreadcrumbs'),
+    driveBack: $('driveBack'),
+    driveUp: $('driveUp'),
+    driveRefresh: $('driveRefresh'),
+    driveView: $('driveView'),
+    driveUpload: $('driveUpload'),
+    driveMore: $('driveMore'),
+    driveRepoTitle: $('driveRepoTitle'),
+    driveRepoMeta: $('driveRepoMeta'),
+    driveOpenGithub: $('driveOpenGithub'),
+    driveShareRepo: $('driveShareRepo'),
+    driveDropZone: $('driveDropZone'),
+    driveFileSearch: $('driveFileSearch'),
+    driveSort: $('driveSort'),
+    driveSelectAll: $('driveSelectAll'),
+    driveFileGrid: $('driveFileGrid'),
+    driveEmpty: $('driveEmpty'),
+    driveEmptyUpload: $('driveEmptyUpload'),
+    drivePathLabel: $('drivePathLabel'),
+    driveItemCount: $('driveItemCount'),
+    driveStorageStatus: $('driveStorageStatus'),
+    driveBranchStatus: $('driveBranchStatus'),
+    driveSyncStatus: $('driveSyncStatus')
   };
 
   // Constants
@@ -167,6 +198,9 @@
   let favorites = loadFavorites();
   let viewMode = 'list';
   let showHiddenFiles = false;
+  let drivePath = '';
+  let driveHistory = [];
+  let driveViewMode = 'grid';
   let currentPreviewFile = null;
   let currentPreviewData = null;
   let previewObjectUrl = null;
@@ -273,7 +307,8 @@
 
   // Theme Management
   function initTheme() {
-    const savedTheme = localStorage.getItem('repodrive_theme') || 'dark';
+    const MIX_THEME_KEY = 'repodrive_mix_theme_v1';
+    const savedTheme = localStorage.getItem(MIX_THEME_KEY) || 'dark';
     document.documentElement.setAttribute('data-theme', savedTheme);
     els.themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
   }
@@ -282,7 +317,7 @@
     const current = document.documentElement.getAttribute('data-theme');
     const next = current === 'dark' ? 'light' : 'dark';
     document.documentElement.setAttribute('data-theme', next);
-    localStorage.setItem('repodrive_theme', next);
+    localStorage.setItem('repodrive_mix_theme_v1', next);
     els.themeToggle.textContent = next === 'dark' ? '☀️' : '🌙';
   }
 
@@ -436,6 +471,8 @@
     try {
       me = await api('/user');
       els.account.textContent = `@${me.login}`;
+      if (els.driveUserName) els.driveUserName.textContent = me.login;
+      if (els.driveAvatar) els.driveAvatar.textContent = (me.login || '?').slice(0,1).toUpperCase();
       els.logoutBtn.classList.remove('hidden');
       els.refreshBtn.classList.remove('hidden');
       els.loginView.classList.add('hidden');
@@ -583,12 +620,16 @@
       row.addEventListener('click', () => selectRepo(r));
       els.repoList.appendChild(row);
     }
+    renderDriveRepos();
   }
 
   // Repository Selection
   async function selectRepo(repo) {
     selected = repo;
+    drivePath = '';
+    driveHistory = [];
     renderRepos();
+    renderDriveLocation();
     els.workspace.classList.remove('hidden');
     els.selectedRepo.textContent = repo.full_name;
     els.selectedMeta.textContent = `${repo.private ? 'Private' : 'Public'} · ${fmt(repo.sizeKB * 1024)} reported by GitHub`;
@@ -1312,7 +1353,141 @@ jobs:
   }
 
   // Render Tree
+  // Mixplorer-inspired cloud explorer -------------------------------------------------
+  function driveFileIcon(path, isFolder = false) {
+    if (isFolder) return '▰';
+    const ext = (path.split('.').pop() || '').toLowerCase();
+    if (['jpg','jpeg','png','gif','webp','svg','bmp','heic','avif'].includes(ext)) return '▧';
+    if (['mp4','mkv','mov','webm','avi','m4v'].includes(ext)) return '▶';
+    if (['mp3','wav','flac','m4a','ogg','aac'].includes(ext)) return '♫';
+    if (['zip','rar','7z','tar','gz','bz2','xz'].includes(ext)) return '▣';
+    if (['pdf'].includes(ext)) return 'P';
+    if (['js','jsx','ts','tsx','py','java','c','cpp','h','css','html','json','xml','yml','yaml','sh'].includes(ext)) return '</>';
+    if (['doc','docx','txt','md','rtf'].includes(ext)) return 'T';
+    return '□';
+  }
+
+  function driveFolderData() {
+    const prefix = drivePath ? drivePath.replace(/\/$/, '') + '/' : '';
+    const folders = new Map();
+    const files = [];
+    for (const item of treeEntries) {
+      if (!showHiddenFiles && item.path.split('/').some(part => part.startsWith('.'))) continue;
+      if (!item.path.startsWith(prefix)) continue;
+      const rest = item.path.slice(prefix.length);
+      if (!rest) continue;
+      const parts = rest.split('/');
+      if (parts.length > 1) {
+        const folder = parts[0];
+        if (!folders.has(folder)) folders.set(folder, { name: folder, path: prefix + folder, size: 0, files: 0 });
+        const f = folders.get(folder); f.size += item.size; f.files++;
+      } else files.push(item);
+    }
+    return { folders:[...folders.values()], files };
+  }
+
+  function renderDriveRepos() {
+    if (!els.driveRepoList) return;
+    const q = (els.driveRepoSearch?.value || '').trim().toLowerCase();
+    const list = repositories.filter(r => !q || r.full_name.toLowerCase().includes(q));
+    els.driveRepoCount.textContent = String(repositories.length);
+    els.driveRepoList.innerHTML = '';
+    if (!list.length) {
+      els.driveRepoList.innerHTML = '<div class="empty" style="padding:12px;font-size:11px">No repositories</div>';
+      return;
+    }
+    for (const r of list) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = `drive-repo-item${selected?.id === r.id ? ' active' : ''}`;
+      b.innerHTML = `<div class="r-title"><span class="r-lock">${r.private ? '🔒' : '○'}</span><span>${escapeHtml(r.name)}</span></div><div class="r-meta">${fmt(r.sizeKB * 1024)} · ${escapeHtml(r.default_branch)}</div>`;
+      b.addEventListener('click', () => selectRepo(r));
+      els.driveRepoList.appendChild(b);
+    }
+  }
+
+  function renderDriveLocation() {
+    if (!els.driveRepoTitle) return;
+    if (!selected) {
+      els.driveRepoTitle.textContent = 'Select a repository';
+      els.driveRepoMeta.textContent = 'Your GitHub repositories appear here like cloud drives.';
+      els.driveOpenGithub.disabled = true; els.driveShareRepo.disabled = true;
+      els.driveBreadcrumbs.innerHTML = '<span class="drive-crumb current">My repositories</span>';
+      return;
+    }
+    els.driveRepoTitle.textContent = selected.full_name;
+    els.driveRepoMeta.textContent = `${selected.private ? 'Private' : 'Public'} · ${fmt(selected.sizeKB * 1024)} reported by GitHub`;
+    els.driveOpenGithub.disabled = false; els.driveShareRepo.disabled = false;
+    els.driveOpenGithub.onclick = () => window.open(selected.html_url, '_blank', 'noopener');
+    els.driveShareRepo.onclick = () => shareFile('');
+    const parts = drivePath ? drivePath.split('/').filter(Boolean) : [];
+    let html = `<button class="drive-crumb${parts.length ? '' : ' current'}" data-drive-path="">${escapeHtml(selected.name)}</button>`;
+    let acc = '';
+    parts.forEach((part, i) => {
+      acc += (acc ? '/' : '') + part;
+      html += `<span class="drive-crumb-sep">›</span><button class="drive-crumb${i === parts.length-1 ? ' current' : ''}" data-drive-path="${escapeHtml(acc)}">${escapeHtml(part)}</button>`;
+    });
+    els.driveBreadcrumbs.innerHTML = html;
+    els.driveBreadcrumbs.querySelectorAll('[data-drive-path]').forEach(btn => btn.addEventListener('click', () => { driveHistory=[]; drivePath=btn.dataset.drivePath || ''; renderDriveLocation(); renderDriveFiles(); }));
+    els.drivePathLabel.textContent = parts.length ? parts[parts.length-1] : 'Repository root';
+    els.driveBranchStatus.textContent = `branch ${els.branchSelect.value || selected.default_branch}`;
+  }
+
+  function renderDriveFiles() {
+    if (!els.driveFileGrid) return;
+    renderDriveLocation();
+    const q = (els.driveFileSearch?.value || '').trim().toLowerCase();
+    let { folders, files } = driveFolderData();
+    if (q) {
+      folders = folders.filter(x => x.name.toLowerCase().includes(q));
+      files = files.filter(x => x.path.split('/').pop().toLowerCase().includes(q));
+    }
+    const sort = els.driveSort?.value || 'name';
+    const cmp = (a,b) => sort === 'size' ? (b.size-a.size) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name);
+    folders.sort(cmp); files.sort(cmp);
+    const total = folders.length + files.length;
+    els.driveItemCount.textContent = `${total} item${total === 1 ? '' : 's'}`;
+    els.driveFileGrid.classList.toggle('list-mode', driveViewMode === 'list');
+    els.driveFileGrid.innerHTML = '';
+    els.driveEmpty.classList.toggle('hidden', total !== 0);
+    if (!total) return;
+
+    for (const folder of folders) {
+      const item = document.createElement('article');
+      item.className = 'drive-item folder';
+      item.innerHTML = `<div class="drive-item-head"><div class="drive-file-icon">${driveFileIcon('',true)}</div><div class="drive-item-name">${escapeHtml(folder.name)}</div></div><div class="drive-item-meta"><span>${folder.files} file${folder.files===1?'':'s'}</span><span>${fmt(folder.size)}</span></div>`;
+      item.addEventListener('dblclick', () => { driveHistory.push(drivePath); drivePath=folder.path; renderDriveFiles(); });
+      item.addEventListener('click', e => { if (e.detail === 1) { setTimeout(() => { if (e.detail === 1) { driveHistory.push(drivePath); drivePath=folder.path; renderDriveFiles(); } }, 180); } });
+      els.driveFileGrid.appendChild(item);
+    }
+    for (const f of files) {
+      const name = f.path.split('/').pop();
+      const checked = selectedTree.has(f.path);
+      const item = document.createElement('article');
+      item.className = `drive-item${checked ? ' selected' : ''}`;
+      item.innerHTML = `<input class="drive-item-check" type="checkbox" ${checked ? 'checked' : ''} aria-label="Select ${escapeHtml(name)}"><div class="drive-item-head"><div class="drive-file-icon">${driveFileIcon(f.path)}</div><div class="drive-item-name">${escapeHtml(name)}</div></div><div class="drive-item-meta"><span>${escapeHtml((f.path.split('.').pop()||'FILE').toUpperCase())}</span><span>${fmt(f.size)}</span></div><div class="drive-item-actions"><button data-action="preview" title="Preview">◉</button><button data-action="favorite" title="Favorite">★</button><button data-action="share" title="Share">⌯</button></div>`;
+      const cb=item.querySelector('.drive-item-check');
+      cb.addEventListener('click', e => e.stopPropagation());
+      cb.addEventListener('change', () => { cb.checked ? selectedTree.add(f.path) : selectedTree.delete(f.path); item.classList.toggle('selected',cb.checked); renderBulk(); });
+      item.addEventListener('dblclick', () => previewFile(f.path));
+      item.addEventListener('click', e => { if (e.target.closest('button') || e.target.closest('input')) return; previewFile(f.path); });
+      item.querySelector('[data-action="preview"]').addEventListener('click', () => previewFile(f.path));
+      item.querySelector('[data-action="favorite"]').addEventListener('click', () => toggleFavorite(f.path));
+      item.querySelector('[data-action="share"]').addEventListener('click', () => shareFile(f.path));
+      els.driveFileGrid.appendChild(item);
+    }
+    const sum = treeEntries.reduce((n,x)=>n+x.size,0);
+    els.driveStorageStatus.textContent = `${treeEntries.length} files · ${fmt(sum)}`;
+    els.driveSyncStatus.textContent = `Synced ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+  }
+
+  function driveGoUp() {
+    if (!drivePath) return;
+    const parts=drivePath.split('/').filter(Boolean); parts.pop(); drivePath=parts.join('/'); renderDriveFiles();
+  }
+
   function renderTree() {
+    if (els.driveFileGrid) { renderDriveFiles(); return; }
     const q = els.fileSearch.value.trim().toLowerCase();
     let list = treeEntries.filter(x => {
       if (!showHiddenFiles && x.path.split('/').pop().startsWith('.')) return false;
@@ -1511,6 +1686,7 @@ jobs:
   async function boot() {
     updateRuleCount();
     initTheme();
+    renderDriveLocation();
     els.rememberSession.checked = localStorage.getItem(REMEMBER_KEY) === '1';
     if (!configured()) els.loginHint.textContent = 'Setup required: put your GitHub App Client ID in config.js, then redeploy.';
     if (els.rememberSession.checked) {
@@ -1676,6 +1852,33 @@ jobs:
   els.viewAnalytics.addEventListener('click', showAnalytics);
   els.webdavMount.addEventListener('click', showWebDAV);
   
+  // Cloud explorer controls
+  if (els.driveRepoSearch) els.driveRepoSearch.addEventListener('input', renderDriveRepos);
+  if (els.driveNewRepo) els.driveNewRepo.addEventListener('click', () => els.newRepoBtn.click());
+  if (els.driveSignOut) els.driveSignOut.addEventListener('click', () => { clearSession(true); location.reload(); });
+  if (els.driveUpload) els.driveUpload.addEventListener('click', () => els.filePicker.click());
+  if (els.driveEmptyUpload) els.driveEmptyUpload.addEventListener('click', () => els.filePicker.click());
+  if (els.driveRefresh) els.driveRefresh.addEventListener('click', loadTree);
+  if (els.driveBack) els.driveBack.addEventListener('click', () => { if (driveHistory.length) drivePath=driveHistory.pop(); else driveGoUp(); renderDriveFiles(); });
+  if (els.driveUp) els.driveUp.addEventListener('click', driveGoUp);
+  if (els.driveView) els.driveView.addEventListener('click', () => { driveViewMode = driveViewMode === 'grid' ? 'list' : 'grid'; els.driveView.textContent = driveViewMode === 'grid' ? '☷' : '▦'; renderDriveFiles(); });
+  if (els.driveFileSearch) els.driveFileSearch.addEventListener('input', renderDriveFiles);
+  if (els.driveSort) els.driveSort.addEventListener('change', renderDriveFiles);
+  if (els.driveSelectAll) els.driveSelectAll.addEventListener('click', () => {
+    const {files}=driveFolderData(); files.forEach(f=>selectedTree.add(f.path)); renderDriveFiles(); renderBulk();
+  });
+  if (els.driveMore) els.driveMore.addEventListener('click', () => {
+    if (!selected) return toast('Select a repository first.','error');
+    toast('Use the action buttons below the explorer for analytics, backup, WebDAV and reports.','');
+  });
+  if (els.driveDropZone) {
+    ['dragenter','dragover'].forEach(t => els.driveDropZone.addEventListener(t,e=>{e.preventDefault(); els.driveDropZone.classList.add('drag');}));
+    ['dragleave','drop'].forEach(t => els.driveDropZone.addEventListener(t,e=>{e.preventDefault(); els.driveDropZone.classList.remove('drag');}));
+    els.driveDropZone.addEventListener('drop', e => addPending(e.dataTransfer.files));
+  }
+  if (els.filePicker) els.filePicker.addEventListener('change', () => setTimeout(renderDriveFiles, 0));
+  if (me && els.driveUserName) { els.driveUserName.textContent=me.login; els.driveAvatar.textContent=(me.login||'?').slice(0,1).toUpperCase(); }
+
   // Keyboard shortcuts
   document.addEventListener('keydown', (e) => {
     if (e.ctrlKey && e.key === 'u') { e.preventDefault(); els.filePicker.click(); }
