@@ -10,7 +10,7 @@
   <link rel="manifest" href="./manifest.webmanifest">
   <link rel="apple-touch-icon" href="./assets/logo-mark.png">
   <title>RepoDrive · Cloud Explorer</title>
-  <link rel="stylesheet" href="./styles.css?v=0.1.8-p0">
+  <link rel="stylesheet" href="./styles.css?v=0.1.9-nav">
 </head>
 <body>
   <!-- Top Navigation -->
@@ -117,26 +117,35 @@
         </aside>
 
         <section class="drive-main">
-          <div class="drive-toolbar">
+                    <div class="drive-toolbar">
             <button id="driveMenu" class="drive-icon drive-menu" title="Repositories" aria-label="Repositories" aria-expanded="false"><span class="mix-menu-glyph" aria-hidden="true"></span></button>
-            <div class="drive-breadcrumbs" id="driveBreadcrumbs"></div>
+            <select id="driveBranchSelect" class="drive-branch-select" title="Branch" aria-label="Branch"></select>
             <div class="drive-toolbar-actions">
-              <select id="driveBranchSelect" class="drive-branch-select" title="Branch" aria-label="Branch"></select>
               <button id="driveBack" class="drive-icon" title="Back" aria-label="Back">‹</button>
-              <button id="driveUp" class="drive-icon" title="Parent folder" aria-label="Parent folder">↑</button>
+              <button id="driveUp" class="drive-icon" title="Up" aria-label="Parent folder">↑</button>
               <button id="driveRefresh" class="drive-icon" title="Refresh" aria-label="Refresh">⟳</button>
-              <button id="driveNewFolderBtn" class="drive-icon" title="New folder">＋📁</button>
-              <button id="driveCopyBtn" class="drive-icon" title="Copy selected">⧉</button>
-              <button id="driveCutBtn" class="drive-icon" title="Cut selected">✂</button>
-              <button id="drivePasteBtn" class="drive-icon" title="Paste">📋</button>
-              <button id="driveDownloadBtn" class="drive-icon" title="Download selected">↓</button>
-              <button id="driveTrashBtn" class="drive-icon" title="Move to trash">🗑</button>
-              <button id="driveFavBtn" class="drive-icon" title="Favorites">★</button>
-              <button id="driveRecentBtn" class="drive-icon" title="Recent">🕒</button>
-              <button id="driveAutoSortBtn" class="drive-icon active" title="Auto-sort ON" aria-pressed="true"><span class="auto-sort-label">Auto</span></button>
+              <button id="driveNewFolderBtn" class="drive-icon" title="New folder">＋</button>
+              <button id="driveDownloadBtn" class="drive-icon" title="Download">↓</button>
+              <button id="driveTrashBtn" class="drive-icon" title="Trash">🗑</button>
+              <button id="driveMore" class="drive-icon" title="More">⋮</button>
               <button id="driveUpload" class="drive-primary"><span class="mix-plus" aria-hidden="true">＋</span> Upload</button>
-              <button id="driveMore" class="drive-icon" title="More actions">⋮</button>
             </div>
+          </div>
+
+          <!-- Always-visible path navigation -->
+          <nav class="drive-nav" aria-label="Folder path">
+            <button type="button" id="driveNavHome" class="drive-nav-home" title="Repository root">⌂</button>
+            <div class="drive-breadcrumbs" id="driveBreadcrumbs"></div>
+          </nav>
+
+          <!-- Secondary actions row -->
+          <div class="drive-secondary-actions">
+            <button id="driveCopyBtn" class="drive-btn" title="Copy">Copy</button>
+            <button id="driveCutBtn" class="drive-btn" title="Cut">Cut</button>
+            <button id="drivePasteBtn" class="drive-btn" title="Paste">Paste</button>
+            <button id="driveFavBtn" class="drive-btn" title="Favorites">★ Fav</button>
+            <button id="driveRecentBtn" class="drive-btn" title="Recent">Recent</button>
+            <button id="driveAutoSortBtn" class="drive-btn active" title="Auto-sort" aria-pressed="true"><span class="auto-sort-label">Auto</span></button>
           </div>
 
           <div class="drive-location">
@@ -494,6 +503,6 @@
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="./config.js"></script>
-  <script src="./app.js?v=0.1.8-p0"></script>
+  <script src="./app.js?v=0.1.9-nav"></script>
 </body>
 </html>

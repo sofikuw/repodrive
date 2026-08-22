@@ -1061,15 +1061,34 @@
     return new Blob([bytes], { type: mime });
   }
 
-  async function getPreviewBlob(data, mime) {
-    // Small files are normally returned directly by the Contents API.
-    if (data?.content && data.encoding === 'base64') return base64Blob(data.content, mime);
-    if (!data?.download_url) throw new Error('GitHub did not provide a downloadable file URL.');
-    const res = await fetch(data.download_url, {
-      headers: { Authorization: `Bearer ${token}`, Accept: 'application/octet-stream' }
+  async function fetchRepoRaw(path, mime) {
+    const branch = currentBranch();
+    const apiPath = String(path).split('/').map(encodeURIComponent).join('/');
+    const url = `${API}/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/contents/${apiPath}?ref=${encodeURIComponent(branch)}`;
+    const res = await fetch(url, {
+      headers: {
+        Accept: 'application/vnd.github.raw',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': API_VERSION
+      }
     });
+    if (!res.ok) throw new Error(`Could not download file (${res.status}).`);
+    const buf = await res.arrayBuffer();
+    return new Blob([buf], { type: mime || res.headers.get('Content-Type') || 'application/octet-stream' });
+  }
+
+  async function getPreviewBlob(data, mime) {
+    // Prefer inline base64 for small files
+    if (data?.content && data.encoding === 'base64') return base64Blob(data.content, mime || 'application/octet-stream');
+    // Private-repo safe: GitHub API raw (avoids CORS on raw.githubusercontent.com)
+    if (currentPreviewFile) {
+      try { return await fetchRepoRaw(currentPreviewFile, mime); } catch (e) { /* fall through */ }
+    }
+    if (!data?.download_url) throw new Error('GitHub did not provide a downloadable file URL.');
+    const res = await fetch(data.download_url);
     if (!res.ok) throw new Error(`Could not download preview (${res.status}).`);
-    return await res.blob();
+    const buf = await res.arrayBuffer();
+    return new Blob([buf], { type: mime || 'application/octet-stream' });
   }
 
   async function previewText(data) {
@@ -1077,8 +1096,14 @@
       const buf = await base64Blob(data.content, 'application/octet-stream').arrayBuffer();
       return new TextDecoder().decode(buf);
     }
+    if (currentPreviewFile) {
+      try {
+        const blob = await fetchRepoRaw(currentPreviewFile, 'text/plain');
+        return await blob.text();
+      } catch (e) { /* fall through */ }
+    }
     if (!data?.download_url) throw new Error('GitHub did not provide a downloadable file URL.');
-    const res = await fetch(data.download_url, { headers: { Authorization: `Bearer ${token}` } });
+    const res = await fetch(data.download_url);
     if (!res.ok) throw new Error(`Could not download text (${res.status}).`);
     return await res.text();
   }
@@ -1139,7 +1164,7 @@
       toast('Preview UI missing', 'error');
       return;
     }
-    const branch = (els.branchSelect && els.branchSelect.value) || selected.default_branch || 'main';
+    const branch = currentBranch();
     currentPreviewFile = path;
     currentPreviewData = null;
     revokePreviewUrl();
@@ -1158,17 +1183,26 @@
 
       if (category === 'text') {
         const content = await previewText(data);
+        const sizeLabel = fmt(data.size || content.length);
         if (['csv','tsv'].includes(ext)) {
           els.previewContent.innerHTML = renderCsvTable(content, ext === 'tsv' ? '\t' : ',');
         } else if (['json','jsonc','json5'].includes(ext)) {
           let formatted = content; try { formatted = JSON.stringify(JSON.parse(content), null, 2); } catch {}
-          els.previewContent.innerHTML = `<pre class="preview-text code-${ext}">${escapeHtml(formatted)}</pre>`;
+          els.previewContent.innerHTML = `<div class="text-preview-wrap"><div class="preview-source-label">JSON · ${sizeLabel}</div><pre class="preview-text code-json">${escapeHtml(formatted)}</pre></div>`;
         } else if (['md','markdown'].includes(ext)) {
-          els.previewContent.innerHTML = renderMarkdown(content);
-        } else if (['html','htm','svg','xhtml'].includes(ext)) {
-          els.previewContent.innerHTML = `<div class="preview-source-label">Source preview · ${escapeHtml(mime)}</div><pre class="preview-text code-${ext}">${escapeHtml(content)}</pre>`;
+          els.previewContent.innerHTML = `<div class="text-preview-wrap markdown-body">${renderMarkdown(content)}</div>`;
         } else {
-          els.previewContent.innerHTML = `<div class="preview-source-label">${escapeHtml(ext || 'text')} · ${fmt(data.size || content.length)}</div><pre class="preview-text code-${ext}">${escapeHtml(content)}</pre>`;
+          const label = (ext || 'text').toUpperCase();
+          // Line-numbered readable source for code/html/txt
+          const lines = content.split('\n');
+          const maxLines = Math.min(lines.length, 2000);
+          let numbered = '';
+          for (let i = 0; i < maxLines; i++) {
+            numbered += `<div class="code-line"><span class="ln">${i + 1}</span><span class="lc">${escapeHtml(lines[i])}</span></div>`;
+          }
+          if (lines.length > maxLines) numbered += `<div class="code-line"><span class="ln">…</span><span class="lc">(${lines.length - maxLines} more lines — download for full file)</span></div>`;
+          els.previewContent.innerHTML = `<div class="text-preview-wrap"><div class="preview-source-label">${escapeHtml(label)} · ${sizeLabel} · ${lines.length} lines</div><div class="preview-code">${numbered}</div><div class="preview-actions"><button class="primary-btn" data-preview-download>Download</button></div></div>`;
+          els.previewContent.querySelector('[data-preview-download]')?.addEventListener('click', downloadPreviewFile);
         }
         return;
       }
@@ -1188,25 +1222,41 @@
       }
 
       if (category === 'audio') {
-        let blob = await getPreviewBlob(data, mime);
-        // Ensure correct MIME so browsers can decode m4a/opus/ogg
-        if (blob && (!blob.type || blob.type === 'application/octet-stream')) {
+        let blob;
+        try {
+          blob = await getPreviewBlob(data, mime);
+        } catch (err) {
+          // Fallback: try raw API again with audio/mpeg
+          blob = await fetchRepoRaw(path, mime || 'audio/mpeg');
+        }
+        if (blob && (!blob.type || blob.type === 'application/octet-stream' || blob.type === 'text/plain')) {
           blob = new Blob([await blob.arrayBuffer()], { type: mime || 'audio/mpeg' });
         }
         previewObjectUrl = URL.createObjectURL(blob);
         const note = ['opus','oga'].includes(ext)
-          ? 'Opus plays in Chromium/Firefox. Safari may need download.'
+          ? 'Opus: Chromium/Firefox OK. Safari may need Download.'
           : (ext === 'm4a' || ext === 'aac')
-            ? 'M4A/AAC usually plays in Safari/Chrome. If not, download the file.'
-            : 'If playback fails, your browser may lack this codec — use Download.';
+            ? 'M4A/AAC: if it fails to play, use Download.'
+            : (ext === 'flac')
+              ? 'FLAC support varies by browser — Download if needed.'
+              : 'If playback fails, download the file.';
         els.previewContent.innerHTML = `<div class="preview-media audio-preview">
           <div class="audio-art">🎵</div>
           <strong>${escapeHtml(path.split('/').pop())}</strong>
-          <div class="preview-format">${escapeHtml((ext || 'audio').toUpperCase())} · ${fmt(data.size || 0)}</div>
-          <audio controls preload="metadata" src="${previewObjectUrl}"></audio>
+          <div class="preview-format">${escapeHtml((ext || 'audio').toUpperCase())} · ${fmt(data.size || blob.size || 0)}</div>
+          <audio id="driveAudioPlayer" controls preload="auto" playsinline>
+            <source src="${previewObjectUrl}" type="${escapeHtml(mime || 'audio/mpeg')}">
+          </audio>
           <div class="media-note">${note}</div>
           <div class="preview-actions"><button class="primary-btn" data-preview-download>Download</button></div>
         </div>`;
+        const player = els.previewContent.querySelector('#driveAudioPlayer');
+        if (player) {
+          player.addEventListener('error', () => {
+            const n = els.previewContent.querySelector('.media-note');
+            if (n) n.textContent = 'Browser could not decode this audio. Use Download.';
+          });
+        }
         els.previewContent.querySelector('[data-preview-download]')?.addEventListener('click', downloadPreviewFile);
         return;
       }
@@ -1939,26 +1989,44 @@ jobs:
     if (!selected) {
       els.driveRepoTitle.textContent = 'Select a repository';
       els.driveRepoMeta.textContent = 'Your GitHub repositories appear here like cloud drives.';
-      els.driveOpenGithub.disabled = true; els.driveShareRepo.disabled = true;
-      els.driveBreadcrumbs.innerHTML = '<span class="drive-crumb current">My repositories</span>';
+      if (els.driveOpenGithub) els.driveOpenGithub.disabled = true;
+      if (els.driveShareRepo) els.driveShareRepo.disabled = true;
+      if (els.driveBreadcrumbs) els.driveBreadcrumbs.innerHTML = '<span class="drive-crumb current">My repositories</span>';
       return;
     }
     els.driveRepoTitle.textContent = selected.full_name;
     els.driveRepoMeta.textContent = `${selected.private ? 'Private' : 'Public'} · ${fmt(selected.sizeKB * 1024)} reported by GitHub`;
-    els.driveOpenGithub.disabled = false; els.driveShareRepo.disabled = false;
-    els.driveOpenGithub.onclick = () => window.open(selected.html_url, '_blank', 'noopener');
-    els.driveShareRepo.onclick = () => shareFile('');
+    if (els.driveOpenGithub) {
+      els.driveOpenGithub.disabled = false;
+      els.driveOpenGithub.onclick = () => window.open(selected.html_url, '_blank', 'noopener');
+    }
+    if (els.driveShareRepo) {
+      els.driveShareRepo.disabled = false;
+      els.driveShareRepo.onclick = () => shareFile('');
+    }
     const parts = drivePath ? drivePath.split('/').filter(Boolean) : [];
-    let html = `<button class="drive-crumb${parts.length ? '' : ' current'}" data-drive-path="">${escapeHtml(selected.name)}</button>`;
+    // Friendly trash label
+    const labelFor = (part, full) => (full === TRASH_ROOT || part === TRASH_ROOT) ? 'Trash' : part;
+    let html = `<button type="button" class="drive-crumb${parts.length ? '' : ' current'}" data-drive-path="">${escapeHtml(selected.name)}</button>`;
     let acc = '';
     parts.forEach((part, i) => {
       acc += (acc ? '/' : '') + part;
-      html += `<span class="drive-crumb-sep">›</span><button class="drive-crumb${i === parts.length-1 ? ' current' : ''}" data-drive-path="${escapeHtml(acc)}">${escapeHtml(part)}</button>`;
+      const isLast = i === parts.length - 1;
+      html += `<span class="drive-crumb-sep">›</span><button type="button" class="drive-crumb${isLast ? ' current' : ''}" data-drive-path="${escapeHtml(acc)}">${escapeHtml(labelFor(part, acc))}</button>`;
     });
-    els.driveBreadcrumbs.innerHTML = html;
-    els.driveBreadcrumbs.querySelectorAll('[data-drive-path]').forEach(btn => btn.addEventListener('click', () => { driveHistory=[]; drivePath=btn.dataset.drivePath || ''; renderDriveLocation(); renderDriveFiles(); }));
-    els.drivePathLabel.textContent = parts.length ? parts[parts.length-1] : 'Repository root';
-    els.driveBranchStatus.textContent = `branch ${els.branchSelect.value || selected.default_branch}`;
+    if (els.driveBreadcrumbs) {
+      els.driveBreadcrumbs.innerHTML = html;
+      els.driveBreadcrumbs.querySelectorAll('[data-drive-path]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          driveHistory.push(drivePath);
+          drivePath = btn.dataset.drivePath || '';
+          renderDriveLocation();
+          renderDriveFiles();
+        });
+      });
+    }
+    if (els.drivePathLabel) els.drivePathLabel.textContent = parts.length ? labelFor(parts[parts.length - 1], drivePath) : 'Repository root';
+    if (els.driveBranchStatus) els.driveBranchStatus.textContent = `branch ${currentBranch()}`;
   }
 
   function bindLongPress(el, onLongPress) {
@@ -2663,6 +2731,11 @@ jobs:
   if (els.driveRefresh) els.driveRefresh.addEventListener('click', loadTree);
   if (els.driveBack) els.driveBack.addEventListener('click', () => { if (driveHistory.length) drivePath = driveHistory.pop(); else driveGoUp(); renderDriveFiles(); });
   if (els.driveUp) els.driveUp.addEventListener('click', driveGoUp);
+  document.getElementById('driveNavHome')?.addEventListener('click', () => {
+    driveHistory.push(drivePath);
+    drivePath = '';
+    renderDriveFiles();
+  });
   if (els.driveFileSearch) els.driveFileSearch.addEventListener('input', renderDriveFiles);
   if (els.driveSort) els.driveSort.addEventListener('change', renderDriveFiles);
   if (els.driveSelectAll) els.driveSelectAll.addEventListener('click', () => {
