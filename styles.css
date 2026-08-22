@@ -3361,196 +3361,250 @@ html[data-theme="light"] .drive-item-name { color: #343436; }
   }
 }
 
-/* ========== Clean MiXplorer tile polish ========== */
+
+
+/* ========== TRUE MiXplorer grid (final override) ========== */
+#appView:not(.hidden) .drive-file-grid,
 .drive-file-grid {
   display: grid !important;
-  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
-  gap: 10px !important;
-  padding: 12px !important;
-  align-content: start;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)) !important;
+  gap: 14px 10px !important;
+  padding: 14px 12px 28px !important;
+  align-content: start !important;
+  overflow: auto !important;
 }
 
-.drive-item {
+/* Both folders and files are equal tiles */
+#appView:not(.hidden) .drive-file-grid .drive-item,
+#appView:not(.hidden) .drive-file-grid .drive-item.folder,
+#appView:not(.hidden) .drive-file-grid .drive-item.file-row,
+#appView:not(.hidden) .drive-file-grid .drive-item.file-tile,
+.drive-item,
+.drive-item.folder,
+.drive-item.file-row,
+.drive-item.file-tile {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  text-align: center !important;
+  width: auto !important;
+  flex: unset !important;
+  min-width: 0 !important;
+  min-height: 118px !important;
+  max-width: none !important;
+  padding: 8px 4px 6px !important;
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  grid-template-columns: none !important;
+  gap: 0 !important;
+  position: relative !important;
+  cursor: pointer;
+}
+
+#appView:not(.hidden) .drive-file-grid .drive-item:hover,
+.drive-item:hover {
+  background: rgba(48, 80, 88, 0.35) !important;
+}
+
+#appView:not(.hidden) .drive-file-grid .drive-item.selected,
+.drive-item.selected {
+  background: rgba(60, 110, 120, 0.45) !important;
+}
+
+/* Icon area */
+#appView:not(.hidden) .drive-file-icon,
+.drive-file-icon {
+  width: 64px !important;
+  height: 56px !important;
+  flex: none !important;
+  display: grid !important;
+  place-items: center !important;
+  margin: 0 auto 6px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  font-size: 42px !important;
+  line-height: 1 !important;
+  color: inherit !important;
+}
+
+/* Yellow folder like real MiX */
+#appView:not(.hidden) .drive-item.folder .drive-file-icon,
+.drive-item.folder .drive-file-icon,
+.drive-item.folder .folder-icon {
+  width: 64px !important;
+  height: 52px !important;
+  font-size: 48px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  color: #f0c14a !important;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,.35));
+}
+#appView:not(.hidden) .drive-item.folder .drive-file-icon::before,
+.drive-item.folder .drive-file-icon::before {
+  display: none !important;
+}
+
+.mix-emoji-folder {
+  font-size: 48px;
+  line-height: 1;
+  display: block;
+  filter: saturate(1.15);
+}
+.mix-emoji {
+  font-size: 40px;
+  line-height: 1;
+  display: block;
+}
+.mix-emoji-audio {
+  font-size: 40px;
+}
+
+/* Hide SVG leftovers if any */
+#appView:not(.hidden) .drive-file-icon svg,
+.drive-file-icon svg,
+.mix-file-svg {
+  display: none !important;
+}
+
+/* Name under icon — cyan like MiX */
+#appView:not(.hidden) .drive-item-name,
+.drive-item-name {
+  display: block !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 0 2px !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.25 !important;
+  color: #5ec8c0 !important;
+  white-space: normal !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  display: -webkit-box !important;
+  -webkit-line-clamp: 2 !important;
+  -webkit-box-orient: vertical !important;
+  word-break: break-word !important;
+}
+
+/* Meta / size under name */
+#appView:not(.hidden) .drive-item-meta,
+.drive-item-meta {
+  display: block !important;
+  width: 100% !important;
+  margin-top: 2px !important;
+  font-size: 10px !important;
+  font-weight: 400 !important;
+  color: #7a8f8e !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  justify-content: center !important;
+  text-align: center !important;
+}
+
+#appView:not(.hidden) .drive-item-type,
+.drive-item-type {
+  display: none !important;
+}
+
+/* Head wrapper no longer used as row */
+#appView:not(.hidden) .drive-item-head,
+.drive-item-head {
+  display: contents !important;
+}
+
+/* Checkbox & actions stay absolute */
+#appView:not(.hidden) .drive-item-check,
+.drive-item-check {
+  position: absolute !important;
+  top: 4px !important;
+  left: 4px !important;
+  opacity: 0 !important;
+  z-index: 2 !important;
+  width: 16px !important;
+  height: 16px !important;
+}
+#appView:not(.hidden) .drive-item:hover .drive-item-check,
+#appView:not(.hidden) .drive-item.selected .drive-item-check,
+.drive-item:hover .drive-item-check,
+.drive-item.selected .drive-item-check {
+  opacity: 1 !important;
+}
+
+#appView:not(.hidden) .drive-item-actions,
+.drive-item-actions {
+  position: absolute !important;
+  right: 2px !important;
+  top: 2px !important;
+  bottom: auto !important;
+  display: none !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  opacity: 1 !important;
+  z-index: 2 !important;
+}
+#appView:not(.hidden) .drive-item:hover .drive-item-actions,
+.drive-item:hover .drive-item-actions {
+  display: flex !important;
+}
+#appView:not(.hidden) .drive-item-actions button,
+.drive-item-actions button {
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 6px !important;
+  border: 1px solid #2a4040 !important;
+  background: #0e1819 !important;
+  color: #c5d4d3 !important;
+  font-size: 12px !important;
+  cursor: pointer !important;
+}
+
+/* Audio preview polish */
+.audio-preview {
   display: flex;
   flex-direction: column;
   align-items: center;
-  text-align: center;
-  padding: 14px 8px 10px !important;
-  border-radius: 10px !important;
-  border: 1px solid transparent !important;
-  background: transparent !important;
-  min-height: 118px;
-  transition: background .15s ease, border-color .15s ease, transform .12s ease;
-}
-
-.drive-item:hover {
-  background: rgba(30, 80, 80, 0.14) !important;
-  border-color: rgba(90, 155, 151, 0.35) !important;
-}
-
-.drive-item.selected {
-  background: rgba(30, 80, 80, 0.28) !important;
-  border-color: #5a9b97 !important;
-}
-
-.drive-item .drive-file-icon {
-  width: 56px !important;
-  height: 48px !important;
-  display: grid;
-  place-items: center;
-  margin: 0 auto 8px;
-  font-size: 0;
-}
-
-.drive-item .drive-file-icon svg,
-.drive-item .mix-file-svg {
-  width: 48px;
-  height: 42px;
-}
-
-/* Yellow MiXplorer-style folders */
-.drive-item.folder .drive-file-icon,
-.drive-item.folder .folder-icon {
-  background: linear-gradient(180deg, #f6d56a 0%, #e8b93a 55%, #d4a02a 100%) !important;
-  border-radius: 6px 6px 4px 4px;
-  box-shadow: 0 2px 0 #b8861e, 0 3px 8px rgba(0,0,0,.25);
-  color: #8a5a10 !important;
-  position: relative;
-}
-
-.drive-item.folder .drive-file-icon::before {
-  content: "";
-  position: absolute;
-  top: -7px;
-  left: 6px;
-  width: 18px;
-  height: 8px;
-  background: linear-gradient(180deg, #f0c94e, #d9a82e);
-  border-radius: 3px 3px 0 0;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
-}
-
-.drive-item.folder .mix-file-svg {
-  opacity: 0;
-  width: 1px;
-  height: 1px;
-}
-
-.drive-item-name {
-  font-size: 12px !important;
-  font-weight: 600 !important;
-  line-height: 1.25 !important;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  color: var(--text-primary);
-}
-
-.drive-item-meta {
-  font-size: 10px !important;
-  color: var(--text-secondary) !important;
-  margin-top: 4px !important;
-  justify-content: center !important;
-  gap: 6px !important;
-}
-
-.drive-item-type {
-  display: none; /* cleaner tiles; type still available in list-mode if re-enabled */
-}
-
-.drive-item-check {
-  position: absolute;
-  top: 6px;
-  left: 6px;
-  opacity: 0;
-  transition: opacity .12s ease;
-}
-.drive-item:hover .drive-item-check,
-.drive-item.selected .drive-item-check {
-  opacity: 1;
-}
-
-.drive-item-actions {
-  position: absolute;
-  right: 4px;
-  bottom: 4px;
-  opacity: 0;
-  gap: 2px;
-}
-.drive-item:hover .drive-item-actions {
-  opacity: 1;
-  display: flex;
-}
-.drive-item-actions button {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 11px;
-  cursor: pointer;
-}
-.drive-item-actions button:hover {
-  color: var(--text-primary);
-  border-color: var(--accent-strong);
-}
-
-/* File-type icon colors */
-.drive-item:not(.folder) .mix-file-svg {
-  stroke: #6fc2bd;
-  fill: none;
-  stroke-width: 1.6;
-}
-.drive-item:not(.folder) .drive-file-icon {
-  background: rgba(30, 80, 80, 0.18);
-  border-radius: 10px;
-  border: 1px solid rgba(90, 155, 151, 0.25);
-}
-
-/* Pending upload bar */
-.drive-pending-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 12px;
-  padding: 10px 14px;
-  border-top: 1px solid var(--border);
-  background: rgba(30, 80, 80, 0.2);
-  flex-shrink: 0;
+  padding: 28px 16px;
+  text-align: center;
 }
-.drive-pending-bar.hidden { display: none !important; }
-.drive-pending-label {
+.audio-preview .audio-art {
+  font-size: 64px;
+  line-height: 1;
+}
+.audio-preview audio {
+  width: min(100%, 420px);
+}
+.audio-preview .preview-format {
+  color: var(--text-secondary);
   font-size: 12px;
-  color: var(--text-primary);
-  font-weight: 600;
-}
-.drive-pending-actions {
-  display: flex;
-  gap: 8px;
-}
-
-/* Long-press feedback */
-.drive-item.pressing {
-  transform: scale(0.96);
-  opacity: 0.85;
 }
 
 @media (max-width: 600px) {
+  #appView:not(.hidden) .drive-file-grid,
   .drive-file-grid {
-    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)) !important;
-    gap: 8px !important;
-    padding: 10px !important;
+    grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)) !important;
+    gap: 12px 8px !important;
+    padding: 10px 8px 24px !important;
   }
-  .drive-item {
-    min-height: 108px;
-    padding: 12px 6px 8px !important;
+  #appView:not(.hidden) .drive-file-icon,
+  .drive-file-icon {
+    width: 56px !important;
+    height: 48px !important;
+    font-size: 40px !important;
   }
-  .drive-item .drive-file-icon {
-    width: 50px !important;
-    height: 42px !important;
+  .mix-emoji-folder { font-size: 44px; }
+  .mix-emoji { font-size: 36px; }
+  #appView:not(.hidden) .drive-item-name,
+  .drive-item-name {
+    font-size: 11px !important;
   }
 }

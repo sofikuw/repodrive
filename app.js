@@ -184,7 +184,7 @@
   const DEFAULT_RULES = [
     { pattern: '^IMG[_-].*|\\.(jpe?g|png|gif|webp|heic|avif)$', folder: 'Images' },
     { pattern: '\\.(mp4|mkv|mov|webm|avi)$', folder: 'Videos' },
-    { pattern: '\\.(mp3|wav|flac|m4a|ogg|aac)$', folder: 'Audio' },
+    { pattern: '\\.(mp3|wav|flac|m4a|aac|ogg|oga|opus|wma|aiff|aif)$', folder: 'Audio' },
     { pattern: '\\.(pdf|docx?|xlsx?|pptx?|csv|txt|md)$', folder: 'Documents' },
     { pattern: '\\.(zip|7z|rar|tar|gz|bz2)$', folder: 'Archives' },
     { pattern: '\\.(apk|aab|exe|msi|deb|rpm)$', folder: 'Apps' },
@@ -1108,9 +1108,26 @@
       }
 
       if (category === 'audio') {
-        const blob = await getPreviewBlob(data, mime);
+        let blob = await getPreviewBlob(data, mime);
+        // Ensure correct MIME so browsers can decode m4a/opus/ogg
+        if (blob && (!blob.type || blob.type === 'application/octet-stream')) {
+          blob = new Blob([await blob.arrayBuffer()], { type: mime || 'audio/mpeg' });
+        }
         previewObjectUrl = URL.createObjectURL(blob);
-        els.previewContent.innerHTML = `<div class="preview-media audio-preview"><div class="audio-art">♫</div><strong>${escapeHtml(path.split('/').pop())}</strong><audio controls preload="metadata" src="${previewObjectUrl}"></audio><div class="media-note">Browser codec support varies by format.</div></div>`;
+        const note = ['opus','oga'].includes(ext)
+          ? 'Opus plays in Chromium/Firefox. Safari may need download.'
+          : (ext === 'm4a' || ext === 'aac')
+            ? 'M4A/AAC usually plays in Safari/Chrome. If not, download the file.'
+            : 'If playback fails, your browser may lack this codec — use Download.';
+        els.previewContent.innerHTML = `<div class="preview-media audio-preview">
+          <div class="audio-art">🎵</div>
+          <strong>${escapeHtml(path.split('/').pop())}</strong>
+          <div class="preview-format">${escapeHtml((ext || 'audio').toUpperCase())} · ${fmt(data.size || 0)}</div>
+          <audio controls preload="metadata" src="${previewObjectUrl}"></audio>
+          <div class="media-note">${note}</div>
+          <div class="preview-actions"><button class="primary-btn" data-preview-download>Download</button></div>
+        </div>`;
+        els.previewContent.querySelector('[data-preview-download]')?.addEventListener('click', downloadPreviewFile);
         return;
       }
 
@@ -1395,10 +1412,11 @@ jobs:
   // Bulk Operations
   async function mutateTree(mode) {
     if (!selected || !selectedTree.size) return;
-    const branch = els.branchSelect.value;
-    els.bulkMove.disabled = true;
-    els.bulkDelete.disabled = true;
-    
+    const branch = (els.branchSelect && els.branchSelect.value) || selected.default_branch || 'main';
+    if (els.bulkMove) els.bulkMove.disabled = true;
+    if (els.bulkDelete) els.bulkDelete.disabled = true;
+    if (els.driveSyncStatus) els.driveSyncStatus.textContent = mode === 'delete' ? 'Deleting…' : 'Moving…';
+
     try {
       const owner = selected.owner, repo = selected.name;
       status('Preparing atomic file operation…');
@@ -1407,29 +1425,29 @@ jobs:
       const parent = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/commits/${head}`);
       const all = new Set(selectedTree);
       let tree = [];
-      
+
       if (mode === 'delete') {
+        // GitHub delete via tree: set sha null for each path
         tree = [...all].map(path => ({ path, mode: '100644', type: 'blob', sha: null }));
       } else {
-        const folder = els.bulkFolder.value;
+        const folder = (els.bulkFolder && els.bulkFolder.value) || '';
+        const prefix = ((els.prefix && els.prefix.value) || '').trim().replace(/^\/+|\/+$/g, '');
         for (const path of all) {
           const item = treeEntries.find(x => x.path === path);
           if (!item) continue;
           const name = path.split('/').pop();
-          const prefix = els.prefix.value.trim().replace(/^\/+|\/+$/g, '');
           const newPath = [prefix, folder, name].filter(Boolean).join('/');
-          const blob = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/blobs/${item.sha}`);
           tree.push({ path, mode: '100644', type: 'blob', sha: null });
           tree.push({ path: newPath, mode: '100644', type: 'blob', sha: item.sha });
         }
       }
-      
+
       const newTree = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ base_tree: parent.tree.sha, tree })
       });
-      
+
       const commit = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/commits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1439,7 +1457,7 @@ jobs:
           parents: [head]
         })
       });
-      
+
       const upd = await fetch(`${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/refs/heads/${encodeURIComponent(branch)}`, {
         method: 'PATCH',
         headers: {
@@ -1452,50 +1470,35 @@ jobs:
       });
       const d = await upd.json();
       if (!upd.ok) throw new Error(d?.message || 'Branch update failed; no force push was attempted.');
-      
+
       selectedTree.clear();
       status(`${mode === 'delete' ? 'Deleted' : 'Moved'} ${all.size} file${all.size === 1 ? '' : 's'} in one commit.`, 'good');
-      toast('Repository updated.', 'good');
+      toast(mode === 'delete' ? 'Deleted.' : 'Moved.', 'good');
       await loadRepos();
       await loadTree();
     } catch (e) {
       status(e.message, 'error');
+      toast(e.message || 'Operation failed', 'error');
     } finally {
-      els.bulkMove.disabled = false;
-      els.bulkDelete.disabled = false;
+      if (els.bulkMove) els.bulkMove.disabled = false;
+      if (els.bulkDelete) els.bulkDelete.disabled = false;
     }
   }
 
   // Render Tree
   // Mixplorer-inspired cloud explorer -------------------------------------------------
-  function driveIconSvg(kind) {
-    const common = 'viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"';
-    const paths = {
-      folder: '<path d=\"M3.5 6.5h6l1.8 2h9.2v9.8a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7z\"/><path d=\"M3.5 6.5v-1A1.5 1.5 0 0 1 5 4h4l1.6 2.1h4.1\"/>',
-      image: '<rect x=\"3.5\" y=\"4\" width=\"17\" height=\"16\" rx=\"2\"/><circle cx=\"8.2\" cy=\"9\" r=\"1.5\"/><path d=\"m5.5 17 4.2-4.2 3 3 2-2 3.8 3.2\"/>',
-      video: '<rect x=\"3.5\" y=\"5\" width=\"17\" height=\"14\" rx=\"2\"/><path d=\"m10 9 5 3-5 3z\"/>',
-      audio: '<path d=\"M9 18V6l10-2v12\"/><circle cx=\"6.5\" cy=\"18\" r=\"2.5\"/><circle cx=\"16.5\" cy=\"16\" r=\"2.5\"/>',
-      archive: '<path d=\"M4 5.5h16v4H4zM5 9.5h14v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18.5z\"/><path d=\"M10 12h4M10 15h4\"/>',
-      pdf: '<path d=\"M6 3.5h8l4 4v13H6z\"/><path d=\"M14 3.5v4h4M8.5 15.5h7M8.5 12.5h4\"/>',
-      code: '<path d=\"m8 7-4 5 4 5M16 7l4 5-4 5M14 4l-4 16\"/>',
-      text: '<path d=\"M6 3.5h8l4 4v13H6z\"/><path d=\"M14 3.5v4h4M9 12h6M9 15h6M9 18h4\"/>',
-      file: '<path d=\"M6 3.5h8l4 4v13H6z\"/><path d=\"M14 3.5v4h4\"/>'
-    };
-    return `<svg class=\"mix-file-svg\" ${common}>${paths[kind] || paths.file}</svg>`;
-  }
-
   function driveFileIcon(path, isFolder = false) {
-    if (isFolder) return driveIconSvg('folder');
+    if (isFolder) return '<span class="mix-emoji-folder" aria-hidden="true">📁</span>';
     const ext = getFileExtension(path);
-    if (IMAGE_EXTS.includes(ext)) return driveIconSvg('image');
-    if (VIDEO_EXTS.includes(ext)) return driveIconSvg('video');
-    if (AUDIO_EXTS.includes(ext)) return driveIconSvg('audio');
-    if (ARCHIVE_EXTS.includes(ext)) return driveIconSvg('archive');
-    if (ext === 'pdf') return driveIconSvg('pdf');
-    if (FONT_EXTS.includes(ext)) return driveIconSvg('text');
-    if (OFFICE_EXTS.includes(ext) || EBOOK_EXTS.includes(ext)) return driveIconSvg('text');
-    if (TEXT_EXTS.includes(ext) || ['dockerfile','makefile','license','readme'].includes(String(path).split('/').pop().toLowerCase())) return driveIconSvg('code');
-    return driveIconSvg('file');
+    if (IMAGE_EXTS.includes(ext)) return '<span class="mix-emoji" aria-hidden="true">🖼️</span>';
+    if (VIDEO_EXTS.includes(ext)) return '<span class="mix-emoji" aria-hidden="true">🎬</span>';
+    if (AUDIO_EXTS.includes(ext)) return '<span class="mix-emoji mix-emoji-audio" aria-hidden="true">🎵</span>';
+    if (ARCHIVE_EXTS.includes(ext)) return '<span class="mix-emoji" aria-hidden="true">📦</span>';
+    if (ext === 'pdf') return '<span class="mix-emoji" aria-hidden="true">📕</span>';
+    if (FONT_EXTS.includes(ext)) return '<span class="mix-emoji" aria-hidden="true">🔤</span>';
+    if (OFFICE_EXTS.includes(ext) || EBOOK_EXTS.includes(ext)) return '<span class="mix-emoji" aria-hidden="true">📄</span>';
+    if (TEXT_EXTS.includes(ext) || ['dockerfile','makefile','license','readme'].includes(String(path).split('/').pop().toLowerCase())) return '<span class="mix-emoji" aria-hidden="true">📝</span>';
+    return '<span class="mix-emoji" aria-hidden="true">📄</span>';
   }
 
 
@@ -1578,23 +1581,38 @@ jobs:
 
   function bindLongPress(el, onLongPress) {
     let timer = null;
-    let moved = false;
+    let startX = 0, startY = 0;
+    const clear = () => {
+      if (timer) { clearTimeout(timer); timer = null; }
+      el.classList.remove('pressing');
+    };
     const start = (e) => {
-      moved = false;
+      clear();
+      const pt = e.touches ? e.touches[0] : e;
+      startX = pt.clientX; startY = pt.clientY;
+      el.classList.add('pressing');
       timer = setTimeout(() => {
         timer = null;
+        el.classList.remove('pressing');
+        // Haptic feedback when available
+        try { navigator.vibrate?.(30); } catch {}
         onLongPress(e);
-      }, 520);
+      }, 550);
     };
-    const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    const move = (e) => {
+      if (!timer) return;
+      const pt = e.touches ? e.touches[0] : e;
+      if (Math.abs(pt.clientX - startX) > 12 || Math.abs(pt.clientY - startY) > 12) clear();
+    };
     el.addEventListener('touchstart', start, { passive: true });
     el.addEventListener('mousedown', start);
-    el.addEventListener('touchmove', () => { moved = true; cancel(); }, { passive: true });
-    el.addEventListener('mousemove', (e) => { if (e.buttons) { moved = true; cancel(); } });
-    el.addEventListener('touchend', cancel);
-    el.addEventListener('mouseup', cancel);
-    el.addEventListener('mouseleave', cancel);
-    el.addEventListener('contextmenu', (e) => { e.preventDefault(); onLongPress(e); });
+    el.addEventListener('touchmove', move, { passive: true });
+    el.addEventListener('mousemove', (e) => { if (e.buttons) move(e); });
+    el.addEventListener('touchend', clear);
+    el.addEventListener('touchcancel', clear);
+    el.addEventListener('mouseup', clear);
+    el.addEventListener('mouseleave', clear);
+    el.addEventListener('contextmenu', (e) => { e.preventDefault(); clear(); onLongPress(e); });
   }
 
   async function deleteFolderContents(folderPath) {
@@ -1663,7 +1681,10 @@ jobs:
     for (const folder of folders) {
       const item = document.createElement('article');
       item.className = 'drive-item folder';
-      item.innerHTML = `<div class="drive-item-head"><div class="drive-file-icon folder-icon">${driveFileIcon('',true)}</div><div class="drive-item-name">${escapeHtml(folder.name)}</div></div><div class="drive-item-meta"><span>${folder.files} file${folder.files===1?'':'s'}</span><span>${fmt(folder.size)}</span></div>`;
+      item.innerHTML = `
+        <div class="drive-file-icon folder-icon">${driveFileIcon('', true)}</div>
+        <div class="drive-item-name">${escapeHtml(folder.name)}</div>
+        <div class="drive-item-meta"><span>&lt;dir&gt;</span></div>`;
       item.addEventListener('click', () => {
         driveHistory.push(drivePath);
         drivePath = folder.path;
@@ -1681,16 +1702,35 @@ jobs:
       const checked = selectedTree.has(f.path);
       const ext = (getFileExtension(f.path) || 'FILE').toUpperCase();
       const item = document.createElement('article');
-      item.className = `drive-item file-row${checked ? ' selected' : ''}`;
-      item.innerHTML = `<input class="drive-item-check" type="checkbox" ${checked ? 'checked' : ''} aria-label="Select ${escapeHtml(name)}"><div class="drive-item-head"><div class="drive-file-icon">${driveFileIcon(f.path)}</div><div class="drive-item-name" title="${escapeHtml(f.path)}">${escapeHtml(name)}</div></div><div class="drive-item-type">${escapeHtml(ext)}</div><div class="drive-item-meta"><span>${fmt(f.size)}</span></div><div class="drive-item-actions"><button data-action="preview" title="Preview">◉</button><button data-action="delete" title="Delete">🗑</button><button data-action="share" title="Share">⌯</button></div>`;
+      item.className = `drive-item file-tile${checked ? ' selected' : ''}`;
+      item.innerHTML = `
+        <input class="drive-item-check" type="checkbox" ${checked ? 'checked' : ''} aria-label="Select ${escapeHtml(name)}">
+        <div class="drive-file-icon">${driveFileIcon(f.path)}</div>
+        <div class="drive-item-name" title="${escapeHtml(f.path)}">${escapeHtml(name)}</div>
+        <div class="drive-item-meta"><span>${fmt(f.size)}</span></div>
+        <div class="drive-item-actions">
+          <button type="button" data-action="preview" title="Preview">◉</button>
+          <button type="button" data-action="delete" title="Delete">🗑</button>
+        </div>`;
       const cb = item.querySelector('.drive-item-check');
       cb.addEventListener('click', e => e.stopPropagation());
-      cb.addEventListener('change', () => { cb.checked ? selectedTree.add(f.path) : selectedTree.delete(f.path); item.classList.toggle('selected', cb.checked); renderBulk(); });
-      item.addEventListener('dblclick', () => previewFile(f.path));
-      item.addEventListener('click', e => { if (e.target.closest('button') || e.target.closest('input')) return; previewFile(f.path); });
-      item.querySelector('[data-action="preview"]').addEventListener('click', e => { e.stopPropagation(); previewFile(f.path); });
-      item.querySelector('[data-action="delete"]').addEventListener('click', e => { e.stopPropagation(); deleteSingleFile(f.path); });
-      item.querySelector('[data-action="share"]').addEventListener('click', e => { e.stopPropagation(); shareFile(f.path); });
+      cb.addEventListener('change', () => {
+        cb.checked ? selectedTree.add(f.path) : selectedTree.delete(f.path);
+        item.classList.toggle('selected', cb.checked);
+        renderBulk();
+      });
+      item.addEventListener('click', e => {
+        if (e.target.closest('button') || e.target.closest('input')) return;
+        previewFile(f.path);
+      });
+      item.querySelector('[data-action="preview"]').addEventListener('click', e => {
+        e.stopPropagation();
+        previewFile(f.path);
+      });
+      item.querySelector('[data-action="delete"]').addEventListener('click', e => {
+        e.stopPropagation();
+        deleteSingleFile(f.path);
+      });
       bindLongPress(item, (e) => {
         e.preventDefault?.();
         e.stopPropagation?.();
@@ -1698,7 +1738,7 @@ jobs:
       });
       els.driveFileGrid.appendChild(item);
     }
-    const sum = treeEntries.reduce((n, x) => n + x.size, 0);
+        const sum = treeEntries.reduce((n, x) => n + x.size, 0);
     els.driveStorageStatus.textContent = `${treeEntries.length} files · ${fmt(sum)}`;
     els.driveSyncStatus.textContent = `Synced ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     updateDrivePendingBar();
@@ -1846,7 +1886,7 @@ jobs:
       const suggestions = {
         'Images': ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'bmp', 'tiff'],
         'Videos': ['mp4', 'mov', 'avi', 'mkv', 'webm', 'wmv', 'flv'],
-        'Audio': ['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg'],
+        'Audio': ['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg', 'oga', 'opus', 'wma', 'aiff', 'aif'],
         'Documents': ['pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'rtf'],
         'Code': ['js', 'ts', 'py', 'java', 'cpp', 'c', 'go', 'rs', 'rb', 'php', 'html', 'css', 'json', 'xml', 'yaml', 'yml', 'toml', 'sh', 'bash'],
         'Data': ['csv', 'tsv', 'sqlite', 'db', 'sql', 'parquet'],
