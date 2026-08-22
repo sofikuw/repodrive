@@ -1413,1951 +1413,296 @@ input:focus, select:focus, textarea:focus {
 
 
 /* =========================================================
-   v0.1.5 Cloud Explorer rebuild
-   Mixplorer HTTP-server inspired: compact, tactile, dense,
-   teal + near-black + soft-white. The existing GitHub API,
-   upload, preview and session logic remains underneath.
+   RepoDrive × MiXplorer HTTP-server look
+   One consolidated pass (replaces earlier overlapping drafts).
+   Colors / layout are taken directly from MiXplorer's own
+   web-server UI. Everything is scoped to .cloud-explorer (plus
+   the topbar, only while the explorer is on screen) so the
+   marketing / login view is untouched. app.js logic is untouched.
    ========================================================= */
-:root {
-  --mix-teal: #1e5050;
-  --mix-teal-2: #286b69;
-  --mix-teal-3: #3a8b87;
-  --mix-bg: #090e0f;
-  --mix-panel: #101819;
-  --mix-panel-2: #141d1e;
-  --mix-line: #263536;
-  --mix-text: #e5eceb;
-  --mix-muted: #8e9b9a;
-  --mix-soft: #c8d2d1;
-  --mix-danger: #b85c5c;
-}
-
-html[data-theme="dark"] body { background:var(--mix-bg); color:var(--mix-text); }
-html[data-theme="dark"] .cloud-explorer { color:var(--mix-text); }
-
-#workspace > .repo-section,
-#workspace > .selected-row,
-#workspace > .view-controls,
-#workspace > .workspace-grid,
-#workspace > .upload-card,
-#workspace > .files-card,
-#workspace > .quick-actions { display:none !important; }
 
 .cloud-explorer {
-  display:grid;
-  grid-template-columns:245px minmax(0,1fr);
-  min-height:calc(100vh - 72px);
-  margin:0 -4px;
-  border:1px solid var(--mix-line);
-  background:var(--mix-bg);
-  overflow:hidden;
-  border-radius:4px;
-}
-.drive-sidebar {
-  display:flex; flex-direction:column; min-width:0;
-  background:#0d1415; border-right:1px solid var(--mix-line);
-}
-.drive-side-head { display:flex; align-items:center; justify-content:space-between; padding:16px 14px 11px; }
-.drive-caption,.drive-side-label,.drive-location-meta,.drive-statusbar,.drive-user small {
-  font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--mix-muted);
-}
-.drive-icon,.drive-btn,.drive-primary,.drive-footer-btn {
-  appearance:none; border:1px solid var(--mix-line); background:#131d1e; color:var(--mix-text);
-  border-radius:4px; min-height:34px; padding:0 11px; font:inherit; cursor:pointer;
-}
-.drive-icon { width:34px; padding:0; display:inline-grid; place-items:center; font-size:18px; }
-.drive-icon:hover,.drive-btn:hover { border-color:var(--mix-teal-3); background:#182526; }
-.drive-primary { background:var(--mix-teal); border-color:var(--mix-teal-2); font-weight:700; }
-.drive-primary:hover { background:var(--mix-teal-2); }
-.drive-icon:disabled,.drive-btn:disabled { opacity:.42; cursor:not-allowed; }
-.drive-search-wrap { display:flex; align-items:center; gap:7px; margin:0 10px 12px; padding:0 9px; height:36px; border:1px solid var(--mix-line); background:#0a1112; border-radius:4px; color:var(--mix-muted); }
-.drive-search-wrap input,.drive-file-actions input { min-width:0; width:100%; border:0; outline:0; background:transparent; color:var(--mix-text); font:inherit; }
-.drive-side-section { min-height:0; flex:1; overflow:auto; padding:0 7px; }
-.drive-side-label { display:flex; justify-content:space-between; padding:8px 8px 6px; }
-.drive-repo-list { display:flex; flex-direction:column; gap:2px; }
-.drive-repo-item { width:100%; text-align:left; border:0; border-left:3px solid transparent; background:transparent; color:var(--mix-text); padding:9px 9px; border-radius:2px; cursor:pointer; }
-.drive-repo-item:hover { background:#142122; }
-.drive-repo-item.active { background:#183031; border-left-color:#55aaa6; }
-.drive-repo-item .r-title { display:flex; align-items:center; gap:7px; font-size:13px; font-weight:700; overflow:hidden; }
-.drive-repo-item .r-title span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.drive-repo-item .r-meta { color:var(--mix-muted); font-size:10px; margin-top:4px; padding-left:22px; }
-.drive-repo-item .r-lock { width:15px; text-align:center; opacity:.9; }
-.drive-side-footer { border-top:1px solid var(--mix-line); padding:11px; display:flex; flex-direction:column; gap:9px; }
-.drive-user { display:flex; align-items:center; gap:9px; min-width:0; }
-.drive-user b { display:block; font-size:12px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.drive-avatar { width:30px; height:30px; display:grid; place-items:center; border-radius:3px; background:var(--mix-teal); color:white; font-weight:800; }
-.drive-footer-btn { width:100%; font-size:11px; min-height:31px; }
-
-.drive-main { min-width:0; display:flex; flex-direction:column; background:#0a1011; }
-.drive-toolbar { min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 12px; border-bottom:1px solid var(--mix-line); background:#0d1415; }
-.drive-breadcrumbs { min-width:0; display:flex; align-items:center; gap:6px; overflow:auto; white-space:nowrap; }
-.drive-crumb { color:var(--mix-soft); background:transparent; border:0; padding:5px 3px; cursor:pointer; font:inherit; font-size:12px; }
-.drive-crumb:hover { color:#6dc0bb; }
-.drive-crumb.current { color:var(--mix-text); font-weight:700; }
-.drive-crumb-sep { color:#53605f; }
-.drive-toolbar-actions { display:flex; gap:5px; flex-shrink:0; }
-.drive-location { display:flex; align-items:center; justify-content:space-between; gap:15px; padding:14px 16px; border-bottom:1px solid var(--mix-line); background:#0f1718; }
-.drive-location-title { font-size:18px; font-weight:800; letter-spacing:-.02em; }
-.drive-location-actions { display:flex; gap:5px; }
-.drive-drop-zone { display:none; align-items:center; gap:12px; margin:10px 12px 0; padding:13px; border:1px dashed #315655; border-radius:4px; background:#0e1919; }
-.drive-drop-zone.drag { display:flex; border-color:#5baaa5; background:#132526; }
-.drive-drop-icon { width:34px; height:34px; display:grid; place-items:center; background:var(--mix-teal); border-radius:3px; font-size:18px; }
-.drive-drop-zone b { display:block; font-size:12px; }
-.drive-drop-zone span { display:block; margin-top:3px; color:var(--mix-muted); font-size:10px; }
-.drive-file-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:11px 12px 8px; }
-.drive-folder-title { display:flex; align-items:baseline; gap:7px; min-width:0; }
-.drive-folder-title b { font-size:13px; }
-.drive-folder-title span:last-child { color:var(--mix-muted); font-size:10px; }
-.drive-file-actions { display:flex; gap:5px; }
-.drive-file-actions input { width:180px; height:32px; border:1px solid var(--mix-line); padding:0 9px; background:#0d1516; border-radius:3px; }
-.drive-file-actions select { height:32px; border:1px solid var(--mix-line); background:#0d1516; color:var(--mix-text); border-radius:3px; padding:0 7px; }
-.drive-file-grid { padding:0 12px 12px; display:grid; grid-template-columns:repeat(auto-fill,minmax(175px,1fr)); gap:5px; overflow:auto; }
-.drive-file-grid.list-mode { display:flex; flex-direction:column; gap:2px; }
-.drive-item { min-width:0; border:1px solid var(--mix-line); background:#101819; border-radius:3px; padding:10px; cursor:pointer; position:relative; }
-.drive-item:hover { border-color:#3b6766; background:#142021; }
-.drive-item.selected { border-color:#5a9b97; background:#173030; }
-.drive-item-head { display:flex; align-items:flex-start; gap:8px; min-width:0; }
-.drive-file-icon { width:34px; height:34px; flex:0 0 34px; display:grid; place-items:center; background:#172223; border:1px solid #293b3b; border-radius:3px; font-size:20px; }
-.drive-item.folder .drive-file-icon { background:#163333; color:#6fc2bd; }
-.drive-item-name { min-width:0; font-size:12px; font-weight:700; line-height:1.25; overflow-wrap:anywhere; }
-.drive-item-meta { margin-top:8px; color:var(--mix-muted); font-size:10px; display:flex; justify-content:space-between; gap:8px; }
-.drive-item-check { position:absolute; top:8px; right:8px; accent-color:var(--mix-teal-3); }
-.drive-item-actions { display:none; gap:3px; position:absolute; right:7px; bottom:7px; }
-.drive-item:hover .drive-item-actions { display:flex; }
-.drive-item-actions button { width:25px; height:25px; border:1px solid var(--mix-line); background:#0c1314; color:var(--mix-soft); border-radius:3px; cursor:pointer; }
-.drive-file-grid.list-mode .drive-item { display:grid; grid-template-columns:30px minmax(0,1fr) 90px 110px; align-items:center; gap:8px; padding:6px 9px; }
-.drive-file-grid.list-mode .drive-file-icon { width:27px; height:27px; font-size:16px; }
-.drive-file-grid.list-mode .drive-item-meta { margin:0; }
-.drive-file-grid.list-mode .drive-item-actions { position:static; display:flex; justify-content:flex-end; }
-.drive-empty { margin:30px auto; max-width:340px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:7px; color:var(--mix-muted); }
-.drive-empty:not(.hidden) { display:flex; }
-.drive-empty-icon { width:50px; height:50px; display:grid; place-items:center; border:1px solid var(--mix-line); background:#111b1c; color:#5eaaa6; font-size:25px; border-radius:3px; }
-.drive-empty b { color:var(--mix-text); }
-.drive-empty span { font-size:11px; }
-.drive-statusbar { display:flex; gap:7px; padding:8px 12px; border-top:1px solid var(--mix-line); background:#0d1415; margin-top:auto; }
-
-/* Make the original repo picker useful as a graceful fallback while the new explorer is loading. */
-#repoList { max-height:420px; overflow:auto; }
-
-@media (max-width:800px) {
-  .cloud-explorer { grid-template-columns:1fr; min-height:calc(100vh - 55px); }
-  .drive-sidebar { max-height:210px; border-right:0; border-bottom:1px solid var(--mix-line); }
-  .drive-side-section { max-height:90px; }
-  .drive-repo-list { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .drive-side-footer { display:none; }
-  .drive-toolbar { padding:7px 8px; }
-  .drive-toolbar-actions .drive-icon:nth-child(2) { display:none; }
-  .drive-location { padding:11px 10px; }
-  .drive-location-actions { display:none; }
-  .drive-file-toolbar { align-items:stretch; flex-direction:column; }
-  .drive-file-actions input { flex:1; width:auto; }
-  .drive-file-actions { width:100%; }
-  .drive-file-grid { grid-template-columns:repeat(2,minmax(0,1fr)); padding:0 8px 10px; }
-  .drive-file-grid.list-mode .drive-item { grid-template-columns:30px minmax(0,1fr) 65px; }
-  .drive-file-grid.list-mode .drive-item-actions { display:none; }
+  /* --- MiXplorer's actual palette --- */
+  --header-bg: #030608;   --header-text: #D3D3D3;
+  --bc-bg: #071D26;       --bc-text: #68737A;
+  --footer-bg: #030608;   --footer-text: #D3D3D3;
+  --highlight: #1E4451;   --highlight-rgb: 30,68,81;
+  --bg: #0C171D;          --text: #EAF2F6;
+  --primary: #35B5E5;     --accent: #33B5E5;    --accent-rgb: 53,181,229;
+  --sec-text: #8A9AA3;
+  --surface: rgba(53,181,229,.08);
+  --border: rgba(53,181,229,.15);
+  --hover: rgba(53,181,229,.12);
+  --radius: 8px;
+  --shadow: 0 4px 16px rgba(0,0,0,.35);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
-@media (max-width:430px) {
-  .drive-repo-list { grid-template-columns:1fr; }
-  .drive-toolbar-actions .drive-primary { padding:0 8px; }
-  .drive-file-grid { grid-template-columns:repeat(2,minmax(0,1fr)); gap:4px; }
-  .drive-item { padding:8px; }
-}
-
-/* =========================================================
-   RepoDrive × MiX HTTP Server visual system
-   Dense file-manager UI, compact controls, cloud-drive surfaces,
-   and mobile-safe layouts. Kept as overrides so app.js behavior
-   remains untouched.
-   ========================================================= */
-:root {
-  --mix-accent: #3a8b87;
-  --mix-accent-strong: #286b69;
-  --mix-surface: #101819;
-  --mix-surface-2: #0d1415;
-  --mix-surface-3: #141d1e;
-  --mix-line: #263536;
-  --mix-text: #e5eceb;
-  --mix-muted: #8e9b9a;
-  --mix-soft: #c8d2d1;
-}
-
-html[data-theme="dark"] {
-  --bg-primary: #090e0f;
-  --bg-secondary: #101819;
-  --bg-tertiary: #141d1e;
-  --bg-glass: rgba(16, 24, 25, .96);
-  --border: #263536;
-  --border-strong: #334443;
-  --accent: #286b69;
-  --accent-strong: #3a8b87;
-}
-
-body { background: var(--bg-primary); }
-
-/* Compact MiX-like chrome */
-.topbar {
-  height: 58px;
-  padding: 0 14px;
-  border-radius: 0;
-  border-left: 0 !important;
-  border-right: 0 !important;
-  background: rgba(13, 20, 21, .97);
-}
-.brand-logo { width: 86px; height: 30px; }
-.top-actions { min-width: 0; overflow-x: auto; scrollbar-width: none; }
-.top-actions::-webkit-scrollbar { display: none; }
-.top-actions .icon-btn { flex: 0 0 36px; width: 36px; height: 36px; min-height: 36px; }
-.account { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-.shell {
-  width: min(1500px, calc(100% - 20px));
-  padding: 16px 0 48px;
-}
-
-.dashboard-header { margin-bottom: 12px; }
-.appbar {
-  align-items: center;
-  margin-bottom: 12px;
-  padding: 4px 2px;
-}
-.appbar h2 { font-size: clamp(22px, 3vw, 30px); letter-spacing: -.6px; }
-.appbar-actions { justify-content: flex-end; }
-
-/* Cloud dashboard cards: less "marketing", more file manager. */
-.stats-grid { gap: 6px; margin-bottom: 10px; }
-.stat-card {
-  padding: 10px 12px;
-  border-radius: 5px;
-  background: var(--mix-surface);
-  border-color: var(--mix-line);
-  box-shadow: none !important;
-}
-.stat-card:hover { transform: none; }
-.stat-card span { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
-.stat-card b { font-size: 20px; }
-.stat-card small { font-size: 10px; }
-
-/* Make the explorer the visual center of the product. */
-.cloud-explorer {
-  margin: 0;
-  min-height: min(720px, calc(100vh - 185px));
-  border-radius: 5px;
-  border-color: var(--mix-line);
-  box-shadow: 0 18px 50px rgba(0,0,0,.18);
-}
-.drive-sidebar { background: var(--mix-surface-2); }
-.drive-main { background: #0a1011; }
-.drive-toolbar { background: #0d1415; }
-.drive-location { background: #0f1718; }
-.drive-file-grid { align-content: start; }
-
-/* Give the selected repo / legacy areas the same dense language. */
-.card, .repo-section, .selected-row, .view-controls {
-  border-radius: 5px;
-  padding: 14px 16px;
-}
-.card:hover { transform: none; }
-.section-head { margin-bottom: 11px; }
-.section-head h3 { font-size: 17px; }
-input, select, textarea {
-  border-radius: 5px;
-  min-height: 38px;
-  padding: 8px 10px;
-}
-.primary-btn, .secondary-btn, .link-btn, .icon-btn {
-  border-radius: 5px;
-  min-height: 36px;
-  padding: 6px 12px;
-}
-.icon-btn { padding: 0; }
-
-/* Mobile-safe selected repository and action bars. */
-.selected-row > div:last-child,
-.section-head > div:last-child,
-.file-actions,
-.view-controls,
-.commit-row,
-.commit-inputs,
-.appbar-actions { min-width: 0; }
-
-.pending-row {
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
-}
-.pending-row .path, .pending-row .dest { min-width: 0; }
-
-@media (max-width: 800px) {
-  .shell { width: min(100% - 12px, 100%); padding-top: 10px; }
-  .topbar { height: 54px; padding: 0 9px; }
-  .brand-logo { width: 78px; }
-  .top-actions { gap: 4px; }
-  .top-actions .icon-btn { flex-basis: 34px; width: 34px; height: 34px; }
-  .account { display: none; }
-
-  .appbar { gap: 10px; }
-  .appbar-actions { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 5px; }
-  .appbar-actions > * { width: 100%; min-width: 0; }
-
-  .stats-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .stat-card { min-width: 0; }
-
-  /* Mobile explorer: sidebar becomes a compact repository drawer. */
-  .cloud-explorer {
-    grid-template-columns: 1fr;
-    min-height: calc(100vh - 95px);
-    overflow: visible;
-  }
-  .drive-sidebar {
-    max-height: none;
-    border-right: 0;
-    border-bottom: 1px solid var(--mix-line);
-  }
-  .drive-side-head { padding: 10px 10px 7px; }
-  .drive-search-wrap { margin: 0 8px 8px; height: 34px; }
-  .drive-side-section { max-height: 112px; padding: 0 5px 6px; }
-  .drive-repo-list {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0,1fr));
-    gap: 3px;
-  }
-  .drive-repo-item { padding: 8px; min-width: 0; }
-  .drive-side-footer { display: none; }
-
-  .drive-toolbar {
-    min-height: 46px;
-    padding: 6px;
-    gap: 5px;
-  }
-  .drive-breadcrumbs { flex: 1 1 auto; min-width: 0; }
-  .drive-toolbar-actions { flex: 0 0 auto; }
-  .drive-toolbar-actions .drive-icon:nth-child(2) { display: none; }
-  .drive-toolbar-actions .drive-icon { width: 32px; min-width: 32px; padding: 0; }
-  .drive-toolbar-actions .drive-primary { padding: 0 9px; }
-
-  .drive-location {
-    align-items: flex-start;
-    padding: 10px;
-    gap: 8px;
-  }
-  .drive-location-title {
-    font-size: 16px;
-    overflow-wrap: anywhere;
-  }
-  .drive-location-actions { display: none; }
-
-  .drive-file-toolbar {
-    align-items: stretch;
-    flex-direction: column;
-    gap: 7px;
-    padding: 9px 8px 7px;
-  }
-  .drive-folder-title { min-height: 25px; }
-  .drive-file-actions { width: 100%; display: grid; grid-template-columns: minmax(0,1fr) auto auto; }
-  .drive-file-actions input { width: auto; min-width: 0; }
-  .drive-file-actions select { min-width: 0; max-width: 110px; }
-  .drive-file-actions .drive-btn { padding: 0 8px; }
-
-  .drive-file-grid {
-    grid-template-columns: repeat(2, minmax(0,1fr));
-    gap: 5px;
-    padding: 0 7px 9px;
-  }
-  .drive-item { padding: 8px; }
-  .drive-item-actions { display: none !important; }
-  .drive-item-name { font-size: 11px; }
-  .drive-item-meta { flex-wrap: wrap; }
-
-  .drive-file-grid.list-mode .drive-item {
-    display: grid;
-    grid-template-columns: 28px minmax(0,1fr) 58px;
-    gap: 7px;
-  }
-  .drive-file-grid.list-mode .drive-item-meta { margin: 0; }
-
-  .drive-statusbar {
-    flex-wrap: wrap;
-    padding: 7px 9px;
-    font-size: 9px;
-  }
-
-  /* Prevent the old workspace/build-style panels from overlapping. */
-  .selected-row,
-  .section-head,
-  .commit-row,
-  .view-controls,
-  .file-actions,
-  .storage-line {
-    align-items: stretch;
-  }
-  .selected-row { flex-direction: column; gap: 10px; }
-  .selected-row > div:last-child { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 5px; }
-  .selected-row > div:last-child > * { min-width: 0; width: 100%; }
-  .view-controls { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 5px; }
-  .view-controls > * { width: 100%; min-width: 0; }
-  .section-head { flex-direction: column; align-items: stretch; }
-  .section-head > div:last-child { display: flex; flex-wrap: wrap; gap: 5px; }
-  .section-head > div:last-child > * { flex: 1 1 120px; min-width: 0; }
-  .repo-controls { grid-template-columns: 1fr; }
-  .grid-two { gap: 8px; }
-  .card { padding: 12px; margin-bottom: 8px; }
-
-  .pending-list { max-height: 45vh; }
-  .pending-row {
-    grid-template-columns: minmax(0,1fr) auto;
-    gap: 5px 8px;
-    padding: 9px 0;
-  }
-  .pending-row .path { grid-column: 1 / -1; white-space: normal; overflow-wrap: anywhere; }
-  .pending-row .dest { grid-column: 1; white-space: normal; overflow-wrap: anywhere; }
-  .pending-row .remove-btn { grid-column: 2; grid-row: 2; }
-  .commit-row { grid-template-columns: 1fr; }
-  .commit-row .primary-btn { width: 100%; }
-
-  .file-actions { display: grid; grid-template-columns: minmax(0,1fr) repeat(4, auto); }
-  .file-actions input { width: auto; min-width: 0; }
-  .file-actions .secondary-btn { min-width: 36px; padding-left: 8px; padding-right: 8px; }
-  .storage-line { gap: 4px 12px; }
-}
-
-@media (max-width: 430px) {
-  .shell { width: calc(100% - 8px); }
-  .brand-logo { width: 72px; }
-  .appbar-actions { grid-template-columns: 1fr 1fr; }
-  .stats-grid { grid-template-columns: 1fr 1fr; }
-  .stat-card { padding: 9px; }
-  .stat-card b { font-size: 18px; }
-
-  .drive-repo-list { grid-template-columns: 1fr; }
-  .drive-side-section { max-height: 92px; }
-  .drive-toolbar-actions .drive-icon:nth-child(3) { display: none; }
-  .drive-toolbar-actions .drive-primary { padding: 0 7px; }
-  .drive-file-actions { grid-template-columns: minmax(0,1fr) auto; }
-  .drive-file-actions select { display: none; }
-  .drive-file-grid { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; }
-  .drive-file-grid.list-mode .drive-item { grid-template-columns: 27px minmax(0,1fr); }
-  .drive-file-grid.list-mode .drive-item-meta { display: none; }
-
-  .selected-row > div:last-child,
-  .view-controls { grid-template-columns: 1fr; }
-  .file-actions { grid-template-columns: minmax(0,1fr) repeat(2, auto); }
-  .file-actions .secondary-btn:nth-last-child(-n+2) { display: none; }
-}
-
-
-/* =========================================================
-   RepoDrive minimal cloud UI pass
-   Goal: MiX-style file manager, not a dashboard.
-   ========================================================= */
-
-/* Remove the "marketing dashboard" chrome while preserving the
-   underlying logic and cloud explorer. */
-.shell:has(#appView:not(.hidden)) {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0;
-}
+/* ---- Fullscreen file-manager shell (MiXplorer has no marketing chrome) ---- */
+.shell:has(#appView:not(.hidden)) { width:100%; max-width:none; margin:0; padding:0; }
 #appView:not(.hidden) .dashboard-header > .appbar,
 #appView:not(.hidden) .dashboard-header > .stats-grid,
 #appView:not(.hidden) .dashboard-header > .access-panel,
 #appView:not(.hidden) .dashboard-header > .global-search,
 #appView:not(.hidden) .dashboard-header > .quick-actions-menu,
 #appView:not(.hidden) > .repo-section,
-#appView:not(.hidden) > #workspace {
-  display: none !important;
-}
-
+#appView:not(.hidden) > #workspace { display:none !important; }
 #appView:not(.hidden) .cloud-explorer {
-  margin: 0;
-  width: 100%;
-  min-height: calc(100vh - 54px);
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
+  width:100%; margin:0; border:0; border-radius:0; box-shadow:none;
+  height:calc(100dvh - 46px);
 }
 
-/* Flat, compact top chrome. */
-.topbar {
-  height: 54px;
-  padding: 0 14px;
-  border-radius: 0;
-  background: #05090a;
-  border-bottom: 1px solid #1d2a2b;
-  box-shadow: none;
+/* ---- Header: MiXplorer's <header> is a 26px logo strip ---- */
+body:has(#appView:not(.hidden)) .topbar {
+  height:46px; padding:0 14px; border-radius:0;
+  background:#030608; border-bottom:1px solid rgba(53,181,229,.15); box-shadow:none;
 }
-.brand-logo { width: 82px; height: 30px; }
-.version { display:none; }
-.top-actions { gap: 4px; }
-.top-actions .icon-btn {
-  width: 34px;
-  min-height: 34px;
-  border-radius: 4px;
-  padding: 0;
-  background: #0b1314;
-  border-color: #1d2a2b;
-  box-shadow: none;
+body:has(#appView:not(.hidden)) .brand-logo { width:82px; height:28px; }
+body:has(#appView:not(.hidden)) .version { display:none; }
+body:has(#appView:not(.hidden)) .top-actions { gap:4px; }
+body:has(#appView:not(.hidden)) .top-actions .icon-btn {
+  width:32px; min-height:32px; border-radius:6px; padding:0;
+  background:rgba(53,181,229,.08); border-color:rgba(53,181,229,.15); box-shadow:none;
 }
-.top-actions .icon-btn:hover { transform:none; }
-.top-actions .account { font-size:12px; color:#a8b5b4; }
-.top-actions #quickActionsBtn,
-.top-actions #globalSearchBtn,
-.top-actions #syncBtn,
-.top-actions #notificationsBtn {
-  display:none;
-}
-.top-actions #themeToggle { display:inline-flex; }
+body:has(#appView:not(.hidden)) .top-actions .icon-btn:hover { transform:none; background:rgba(53,181,229,.15); }
+body:has(#appView:not(.hidden)) .top-actions #quickActionsBtn,
+body:has(#appView:not(.hidden)) .top-actions #globalSearchBtn,
+body:has(#appView:not(.hidden)) .top-actions #syncBtn,
+body:has(#appView:not(.hidden)) .top-actions #notificationsBtn { display:none; }
+body:has(#appView:not(.hidden)) .top-actions .account { font-size:.7rem; color:var(--sec-text,#8A9AA3); }
 
-/* Desktop explorer: tighter and closer to a file manager. */
+/* ---- Overall two-pane layout: tree panel + main, like #main-container ---- */
 .cloud-explorer {
-  grid-template-columns: 220px minmax(0,1fr);
-  background:#081012;
+  display:flex;
+  min-height:0;
+  background:var(--bg);
+  overflow:hidden;
 }
-.drive-sidebar {
-  background:#091315;
-  border-right:1px solid #1d2d2e;
-}
-.drive-side-head { padding:11px 10px 8px; }
-.drive-caption { font-size:10px; }
-.drive-search-wrap {
-  height:34px;
-  margin:0 8px 9px;
-  border-radius:3px;
-}
-.drive-side-section { padding:0 5px; }
-.drive-side-label { padding:7px 7px 5px; }
-.drive-repo-item {
-  padding:8px 8px;
-  border-radius:2px;
-}
-.drive-repo-item .r-title { font-size:12px; }
-.drive-repo-item .r-meta { font-size:9px; }
 
-.drive-main { background:#081012; }
+/* ================= Sidebar → MiXplorer's #tree-panel ================= */
+.drive-sidebar {
+  width:260px; flex-shrink:0;
+  display:flex; flex-direction:column; min-width:0;
+  background:var(--bg); border-right:1px solid var(--border);
+}
+.drive-side-head { display:flex; align-items:center; justify-content:space-between; padding:12px 14px 8px; }
+.drive-caption { font-size:.65rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--sec-text); }
+.drive-icon,.drive-btn,.drive-primary,.drive-footer-btn {
+  appearance:none; border:1px solid var(--border); background:var(--surface); color:var(--text);
+  border-radius:var(--radius); min-height:32px; padding:0 12px; font:inherit; font-weight:600; font-size:.75rem;
+  cursor:pointer; transition:.12s; display:inline-flex; align-items:center; justify-content:center; gap:6px;
+}
+.drive-icon { width:32px; padding:0; font-size:1rem; }
+.drive-icon:hover,.drive-btn:hover { background:var(--hover); border-color:var(--sec-text); }
+.drive-primary { background:var(--primary); border-color:var(--primary); color:#fff; font-weight:700; }
+.drive-primary:hover { opacity:.9; }
+.drive-icon:disabled,.drive-btn:disabled { opacity:.35; cursor:not-allowed; }
+
+.drive-search-wrap {
+  display:flex; align-items:center; gap:7px; margin:0 12px 10px; padding:0 10px; height:34px;
+  border:1px solid var(--border); background:var(--surface); border-radius:var(--radius); color:var(--sec-text);
+}
+.drive-search-wrap:focus-within { border-color:var(--primary); background:var(--bg); }
+.drive-search-wrap input,.drive-file-actions input {
+  min-width:0; width:100%; border:0; outline:0; background:transparent; color:var(--text); font:inherit; font-size:.75rem;
+}
+.drive-side-section { min-height:0; flex:1; overflow:auto; padding:0 8px; scrollbar-width:thin; }
+.drive-side-label { display:flex; justify-content:space-between; padding:6px 8px 6px; font-size:.65rem; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--sec-text); }
+.drive-repo-list { display:flex; flex-direction:column; gap:1px; }
+
+/* Repo rows styled like MiXplorer's .tree-row */
+.drive-repo-item {
+  width:100%; text-align:left; border:0; border-left:3px solid transparent; background:transparent;
+  color:var(--text); padding:7px 9px 7px 9px; border-radius:6px; cursor:pointer; font-size:.85rem;
+}
+.drive-repo-item:hover { background:var(--hover); }
+.drive-repo-item.active { background:var(--hover); border-left-color:var(--primary); color:var(--primary); font-weight:600; }
+.drive-repo-item .r-title { display:flex; align-items:center; gap:7px; font-size:.85rem; font-weight:600; overflow:hidden; }
+.drive-repo-item .r-title span:last-child { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.drive-repo-item .r-meta { color:var(--sec-text); font-size:.65rem; margin-top:3px; padding-left:22px; }
+.drive-repo-item .r-lock { width:15px; text-align:center; opacity:.85; }
+
+.drive-side-footer { border-top:1px solid var(--border); padding:10px; display:flex; flex-direction:column; gap:8px; }
+.drive-user { display:flex; align-items:center; gap:9px; min-width:0; }
+.drive-user b { display:block; font-size:.75rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.drive-user small { color:var(--sec-text); font-size:.65rem; }
+.drive-avatar { width:28px; height:28px; flex-shrink:0; display:grid; place-items:center; border-radius:6px; background:var(--primary); color:#fff; font-weight:800; font-size:.8rem; }
+.drive-footer-btn { width:100%; font-size:.7rem; min-height:30px; }
+
+/* ================= Main pane ================= */
+.drive-main { min-width:0; flex:1; display:flex; flex-direction:column; background:var(--bg); }
+
+/* Toolbar → MiXplorer's #bc-container (breadcrumb strip) */
 .drive-toolbar {
-  min-height:44px;
-  padding:5px 8px;
-  background:#091315;
-  border-bottom:1px solid #1d2d2e;
+  min-height:40px; display:flex; align-items:center; gap:10px;
+  padding:0 16px; border-bottom:1px solid var(--border); background:var(--bc-bg); color:var(--bc-text);
 }
 .drive-menu { display:none; }
+.drive-breadcrumbs { flex:1; min-width:0; display:flex; align-items:center; gap:0; overflow:auto; white-space:nowrap; scrollbar-width:none; }
+.drive-breadcrumbs::-webkit-scrollbar { display:none; }
+.drive-crumb { color:inherit; opacity:.75; background:transparent; border:0; padding:4px 6px; cursor:pointer; font:inherit; font-size:.8rem; font-weight:500; border-radius:5px; }
+.drive-crumb:hover { opacity:1; background:rgba(255,255,255,.06); }
+.drive-crumb.current { opacity:1; color:var(--footer-text); font-weight:700; }
+.drive-crumb-sep { color:var(--sec-text); opacity:.6; padding:0 1px; }
+.drive-toolbar-actions { display:flex; gap:6px; flex-shrink:0; align-items:center; }
+
+/* Location info line — compact secondary strip, MiXplorer-flavored */
 .drive-location {
-  padding:9px 11px;
-  background:#0a1517;
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding:10px 16px; border-bottom:1px solid var(--border); background:var(--bg);
 }
-.drive-location-title { font-size:15px; }
-.drive-file-toolbar {
-  padding:8px 9px 6px;
-  background:#081012;
+.drive-location-title { font-size:.95rem; font-weight:700; letter-spacing:-.01em; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.drive-location-meta { font-size:.7rem; color:var(--sec-text); margin-top:2px; }
+.drive-location-actions { display:flex; gap:6px; flex-shrink:0; }
+
+/* Drop zone → styled like MiXplorer's dashed upload zone */
+.drive-drop-zone {
+  display:none; align-items:center; gap:12px; margin:10px 16px 0; padding:14px;
+  border:2px dashed rgba(53,181,229,.35); border-radius:var(--radius); background:rgba(53,181,229,.06);
 }
-.drive-file-actions input,
+.drive-drop-zone.drag { display:flex; border-color:var(--primary); background:rgba(53,181,229,.12); }
+.drive-drop-icon { width:34px; height:34px; display:grid; place-items:center; background:var(--primary); color:#fff; border-radius:var(--radius); font-size:1.1rem; }
+.drive-drop-zone b { display:block; font-size:.8rem; color:var(--text); }
+.drive-drop-zone span { display:block; margin-top:2px; color:var(--sec-text); font-size:.7rem; }
+
+/* File toolbar → MiXplorer's .toolbar (search + sort + select-all) */
+.drive-file-toolbar { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:10px 16px; flex-wrap:wrap; }
+.drive-folder-title { display:flex; align-items:baseline; gap:8px; min-width:0; color:var(--text); }
+.drive-folder-title b { font-size:.85rem; font-weight:700; }
+.drive-folder-title span:last-child { color:var(--sec-text); font-size:.7rem; }
+.drive-file-actions { display:flex; gap:6px; align-items:center; }
+.drive-file-actions input {
+  width:200px; height:32px; border:1px solid var(--border); padding:0 12px;
+  background:var(--surface); border-radius:var(--radius); font-size:.75rem;
+}
+.drive-file-actions input:focus { border-color:var(--primary); background:var(--bg); }
 .drive-file-actions select {
-  height:31px;
-  border-radius:3px;
+  height:32px; border:1px solid var(--border); background:var(--surface); color:var(--text);
+  border-radius:var(--radius); padding:0 8px; font-size:.75rem; font-weight:600;
 }
+
+/* ================= File grid / list → MiXplorer's #view ================= */
 .drive-file-grid {
-  grid-template-columns:repeat(auto-fill,minmax(145px,1fr));
-  gap:4px;
-  padding:0 8px 8px;
+  flex:1; overflow:auto; align-content:start;
+  padding:14px 16px 40px;
+  display:grid; grid-template-columns:repeat(auto-fill,minmax(96px,1fr)); gap:6px;
 }
+.drive-file-grid.list-mode { display:flex; flex-direction:column; gap:0; padding-top:4px; }
+
 .drive-item {
-  padding:8px;
-  border-radius:3px;
-  background:#0b1516;
-  border-color:#1c2b2c;
+  min-width:0; position:relative; cursor:pointer;
+  display:flex; flex-direction:column; align-items:center; text-align:center;
+  padding:10px 6px; border-radius:var(--radius); border:1px solid transparent; background:transparent;
 }
-.drive-item:hover { transform:none; }
-.drive-file-icon {
-  width:30px;
-  height:30px;
-  flex-basis:30px;
-  font-size:18px;
-}
-.drive-item-name { font-size:11px; }
-.drive-item-meta { margin-top:6px; font-size:9px; }
+.drive-item:hover { background:var(--surface); border-color:var(--border); }
+.drive-item.selected,.drive-item.folder.selected { background:rgba(53,181,229,.16); border-color:var(--primary); }
 
-/* Critical fix: global input rules were making the checkbox a giant
-   invisible selection layer over the whole card. */
-.drive-item .drive-item-check,
+.drive-item-head { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; width:100%; }
+.drive-file-icon { width:52px; height:52px; flex-shrink:0; display:grid; place-items:center; font-size:2rem; }
+.drive-item.folder .drive-file-icon { color:var(--primary); }
+.drive-item-name { min-width:0; width:100%; font-size:.8rem; font-weight:500; line-height:1.3; color:var(--text); overflow-wrap:anywhere; max-height:2.6em; overflow:hidden; }
+.drive-item-meta { margin-top:3px; color:var(--sec-text); font-size:.65rem; display:flex; justify-content:center; gap:6px; }
+
 .drive-item-check {
-  position:absolute !important;
-  top:7px !important;
-  right:7px !important;
-  width:16px !important;
-  height:16px !important;
-  min-width:16px !important;
-  min-height:16px !important;
-  max-width:16px !important;
-  max-height:16px !important;
-  margin:0 !important;
-  padding:0 !important;
-  border:0 !important;
-  box-shadow:none !important;
-  accent-color:#38b9ad;
-  cursor:pointer;
-  z-index:3;
+  position:absolute; top:6px; left:6px; width:15px; height:15px; margin:0; z-index:3;
+  accent-color:var(--primary); opacity:0; cursor:pointer;
 }
+.drive-item:hover .drive-item-check,
+.drive-item-check:checked,
+.drive-item.selected .drive-item-check { opacity:1; }
 
-/* Don't let the checkbox steal the whole file-card click target. */
-.drive-item { padding-right:30px; }
-
-/* Preview actions are always reachable on touch; on desktop they stay
-   subtle until hover. */
-.drive-item-actions {
-  display:flex;
-  opacity:0;
-  pointer-events:none;
-}
+.drive-item-actions { display:flex; gap:3px; position:absolute; right:6px; bottom:6px; opacity:0; pointer-events:none; }
 .drive-item:hover .drive-item-actions,
-.drive-item:focus-within .drive-item-actions {
-  opacity:1;
-  pointer-events:auto;
-}
+.drive-item:focus-within .drive-item-actions { opacity:1; pointer-events:auto; }
 .drive-item-actions button {
-  width:24px;
-  height:24px;
-  padding:0;
-  border-radius:3px;
+  width:24px; height:24px; border:1px solid var(--border); background:var(--bg); color:var(--sec-text);
+  border-radius:6px; cursor:pointer; font-size:.7rem; display:grid; place-items:center;
 }
+.drive-item-actions button:hover { color:var(--primary); border-color:var(--primary); }
 
-/* Preview window: compact, real file-manager dialog. */
-#previewModal {
-  width:min(900px, calc(100vw - 20px));
-  max-width:calc(100vw - 20px);
-  max-height:calc(100vh - 20px);
-  margin:auto;
-  border:1px solid #243536;
-  border-radius:5px;
-  background:#091012;
-  box-shadow:0 18px 55px rgba(0,0,0,.55);
+/* List mode: full-width rows, like MiXplorer's .list .item */
+.drive-file-grid.list-mode .drive-item {
+  flex-direction:row; align-items:center; text-align:left; width:100%;
+  padding:6px 16px; border-radius:0; border:0; border-bottom:1px solid var(--border);
 }
-#previewModal .dialog {
-  width:100%;
-  max-width:none;
-  max-height:calc(100vh - 20px);
-  padding:10px;
-  background:#091012 !important;
-  border-radius:5px;
-  overflow:hidden auto;
-}
-#previewModal .dialog-header {
-  margin-bottom:8px;
-  min-width:0;
-}
-#previewModal .dialog-header h3 {
-  min-width:0;
-  max-width:calc(100% - 180px);
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-size:14px;
-}
-#previewContent {
-  min-height:100px;
-  max-height:calc(100vh - 150px);
-  padding:6px;
-  background:#050b0c;
-  border:1px solid #1b2a2b;
-  border-radius:3px;
-}
-#previewContent img,
-#previewContent video {
-  max-width:100%;
-  max-height:calc(100vh - 190px);
-  border-radius:2px;
-}
-#previewContent iframe {
-  height:calc(100vh - 190px);
-  border-radius:2px;
-}
-#previewContent pre.preview-text {
-  width:100%;
-  margin:0;
-  padding:12px;
-  box-sizing:border-box;
-  overflow:auto;
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
-  text-align:left;
-  font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
-  color:#d5dfde;
-}
-#previewModal .dialog-actions {
-  margin-top:8px;
-}
-#previewModal .dialog-actions .primary-btn {
-  min-height:32px;
-  padding:4px 12px;
-}
+.drive-file-grid.list-mode .drive-item-head { flex-direction:row; align-items:center; gap:12px; flex:1; min-width:0; width:auto; }
+.drive-file-grid.list-mode .drive-file-icon { width:30px; height:30px; font-size:1.3rem; }
+.drive-file-grid.list-mode .drive-item-name { text-align:left; font-size:.85rem; max-height:none; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.drive-file-grid.list-mode .drive-item-meta { margin:0; flex:0 0 auto; width:110px; justify-content:flex-end; }
+.drive-file-grid.list-mode .drive-item-check { position:static; opacity:1; margin-right:2px; }
+.drive-file-grid.list-mode .drive-item-actions { position:static; opacity:1; pointer-events:auto; margin-left:8px; }
 
-/* Mobile: no giant repo panel above the files. Use a real drawer. */
+.drive-empty { margin:40px auto; max-width:320px; text-align:center; display:flex; flex-direction:column; align-items:center; gap:8px; color:var(--sec-text); }
+.drive-empty:not(.hidden) { display:flex; }
+.drive-empty-icon { width:52px; height:52px; display:grid; place-items:center; border:1px solid var(--border); background:var(--surface); color:var(--primary); font-size:1.6rem; border-radius:var(--radius); }
+.drive-empty b { color:var(--text); }
+.drive-empty span { font-size:.75rem; }
+
+/* Statusbar → MiXplorer's <footer> */
+.drive-statusbar {
+  display:flex; gap:10px; align-items:center; padding:8px 16px;
+  border-top:1px solid var(--border); background:var(--footer-bg); color:var(--footer-text);
+  font-size:.7rem; margin-top:auto; flex-shrink:0;
+}
+.drive-statusbar span:not(:last-child)::after { content:''; }
+
+/* ================= Preview modal, dense/dark like MiXplorer's viewer ================= */
+#previewModal { width:min(900px, calc(100vw - 20px)); max-width:calc(100vw - 20px); max-height:calc(100vh - 20px); margin:auto; border:1px solid rgba(53,181,229,.15); border-radius:var(--radius, 8px); background:#0C171D; box-shadow:0 18px 55px rgba(0,0,0,.55); }
+#previewModal .dialog { width:100%; max-width:none; max-height:calc(100vh - 20px); padding:10px; background:#0C171D !important; border-radius:8px; overflow:hidden auto; }
+#previewModal .dialog-header { margin-bottom:8px; min-width:0; }
+#previewModal .dialog-header h3 { min-width:0; max-width:calc(100% - 180px); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:.9rem; }
+#previewContent { min-height:100px; max-height:calc(100vh - 150px); padding:6px; background:#050b0c; border:1px solid rgba(53,181,229,.12); border-radius:6px; }
+#previewContent img, #previewContent video { max-width:100%; max-height:calc(100vh - 190px); border-radius:4px; }
+#previewContent iframe { height:calc(100vh - 190px); border-radius:4px; }
+#previewContent pre.preview-text { width:100%; margin:0; padding:12px; box-sizing:border-box; overflow:auto; white-space:pre-wrap; overflow-wrap:anywhere; text-align:left; font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; color:#d5dfde; }
+
+#repoList { max-height:420px; overflow:auto; }
+
+/* ================= Mobile: MiXplorer's slide-out tree drawer ================= */
 @media (max-width:800px) {
-  .shell:has(#appView:not(.hidden)) { padding:0; }
-  .topbar {
-    height:50px;
-    padding:0 8px;
-  }
-  .brand-logo { width:72px; height:28px; }
-  .top-actions #themeToggle { display:none; }
-  .top-actions #logoutBtn {
-    display:inline-flex !important;
-    font-size:11px;
-    padding:3px 5px;
-  }
+  body:has(#appView:not(.hidden)) .topbar { height:44px; padding:0 8px; }
+  body:has(#appView:not(.hidden)) .brand-logo { width:70px; height:26px; }
+  body:has(#appView:not(.hidden)) .top-actions #themeToggle { display:none; }
+  body:has(#appView:not(.hidden)) .top-actions #logoutBtn { display:inline-flex !important; font-size:.65rem; padding:3px 6px; }
 
-  #appView:not(.hidden) .cloud-explorer {
-    min-height:calc(100vh - 50px);
-    display:block;
-    position:relative;
-    overflow:hidden;
-  }
+  #appView:not(.hidden) .cloud-explorer { height:calc(100dvh - 44px); position:relative; overflow:hidden; }
 
   .drive-sidebar {
-    position:absolute;
-    inset:0 auto 0 0;
-    width:min(278px,86vw);
-    max-height:none;
-    height:100%;
-    z-index:20;
-    transform:translateX(-102%);
-    transition:transform .18s ease;
-    box-shadow:12px 0 28px rgba(0,0,0,.45);
-    border-right:1px solid #294142;
-    border-bottom:0;
+    position:absolute; inset:0 auto 0 0; width:min(280px,86vw); z-index:20;
+    transform:translateX(-102%); transition:transform .18s ease; box-shadow:12px 0 28px rgba(0,0,0,.45);
   }
   body.drive-menu-open .drive-sidebar { transform:translateX(0); }
   .drive-side-footer { display:flex; }
 
-  .drive-main {
-    width:100%;
-    min-height:calc(100vh - 50px);
-  }
-  .drive-toolbar {
-    min-height:43px;
-    padding:4px 5px;
-  }
-  .drive-menu {
-    display:inline-grid;
-    flex:0 0 32px;
-    width:32px;
-    min-width:32px;
-    height:32px;
-    border-radius:3px;
-  }
-  .drive-breadcrumbs { flex:1; }
-  .drive-toolbar-actions {
-    gap:3px;
-  }
-  .drive-toolbar-actions .drive-icon {
-    width:30px;
-    min-width:30px;
-    height:30px;
-  }
-  .drive-toolbar-actions #driveBack,
-  .drive-toolbar-actions #driveUp,
-  .drive-toolbar-actions #driveMore {
-    display:none;
-  }
-  .drive-toolbar-actions .drive-primary {
-    min-height:30px;
-    padding:0 8px;
-    font-size:11px;
-  }
+  .drive-menu { display:inline-flex; flex:0 0 32px; width:32px; height:32px; }
+  .drive-toolbar { padding:0 8px; gap:6px; }
+  .drive-toolbar-actions .drive-icon:nth-child(2) { display:none; }
 
-  .drive-location {
-    padding:8px 9px;
-  }
-  .drive-location-title { font-size:14px; }
-  .drive-location-meta { font-size:9px; }
+  .drive-location { padding:8px 10px; }
+  .drive-location-title { font-size:.85rem; }
+  .drive-location-actions { display:none; }
 
-  .drive-file-toolbar {
-    display:grid;
-    grid-template-columns:1fr;
-    gap:5px;
-    padding:7px 7px 6px;
-  }
-  .drive-folder-title { min-height:20px; }
-  .drive-file-actions {
-    display:grid;
-    grid-template-columns:minmax(0,1fr) auto;
-    width:100%;
-    gap:4px;
-  }
-  .drive-file-actions input {
-    width:auto;
-    height:32px;
-  }
-  .drive-file-actions select { display:none; }
-  .drive-file-actions .drive-btn {
-    height:32px;
-    min-height:32px;
-    padding:0 8px;
-    font-size:10px;
-  }
+  .drive-file-toolbar { flex-direction:column; align-items:stretch; padding:8px; gap:6px; }
+  .drive-file-actions { width:100%; }
+  .drive-file-actions input { flex:1; width:auto; }
+  .drive-file-actions select { max-width:120px; }
 
-  .drive-file-grid {
-    grid-template-columns:repeat(2,minmax(0,1fr));
-    gap:4px;
-    padding:0 6px 7px;
-  }
-  .drive-item {
-    padding:8px 28px 8px 8px;
-    min-height:66px;
-  }
-  .drive-file-icon {
-    width:28px;
-    height:28px;
-    flex-basis:28px;
-    font-size:17px;
-  }
-  .drive-item-name {
-    font-size:11px;
-    line-height:1.2;
-  }
-  .drive-item-meta {
-    margin-top:5px;
-    font-size:9px;
-  }
+  .drive-file-grid { grid-template-columns:repeat(3,minmax(0,1fr)); padding:8px 8px 24px; gap:4px; }
+  .drive-file-grid.list-mode .drive-item-actions { display:none; }
   .drive-item-actions { display:none !important; }
 
-  .drive-statusbar {
-    padding:6px 8px;
-    font-size:8px;
-  }
+  .drive-statusbar { font-size:.62rem; padding:6px 10px; flex-wrap:wrap; }
 
-  #previewModal {
-    width:calc(100vw - 10px);
-    max-width:calc(100vw - 10px);
-    max-height:calc(100vh - 10px);
-    border-radius:4px;
-  }
-  #previewModal .dialog {
-    padding:7px;
-    max-height:calc(100vh - 10px);
-  }
-  #previewModal .dialog-header h3 {
-    max-width:calc(100% - 150px);
-    font-size:12px;
-  }
-  #previewContent {
-    max-height:calc(100vh - 110px);
-    min-height:90px;
-  }
-  #previewContent img,
-  #previewContent video {
-    max-height:calc(100vh - 145px);
-  }
-  #previewContent iframe {
-    height:calc(100vh - 145px);
-  }
+  #previewModal { width:calc(100vw - 10px); max-width:calc(100vw - 10px); max-height:calc(100vh - 10px); border-radius:6px; }
+  #previewModal .dialog { padding:7px; max-height:calc(100vh - 10px); }
+  #previewModal .dialog-header h3 { max-width:calc(100% - 140px); font-size:.75rem; }
+  #previewContent { max-height:calc(100vh - 110px); min-height:90px; }
+  #previewContent img, #previewContent video { max-height:calc(100vh - 145px); }
+  #previewContent iframe { height:calc(100vh - 145px); }
   #previewModal .dialog-actions { display:none; }
 }
 
 @media (max-width:430px) {
-  .brand-logo { width:68px; }
-  .drive-file-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
-  .drive-item { min-height:62px; }
-}
-
-
-/* =========================================================
-   RepoDrive MiX cloud mode
-   Frontend-only presentation layer: the existing GitHub/API
-   behavior remains intact while the old dashboard/picker chrome
-   is removed from the visible experience.
-   ========================================================= */
-
-/* Keep the cloud explorer as the only primary post-login surface. */
-.appbar,
-.stats-grid,
-#accessPanel,
-#globalSearchBar,
-#quickActionsMenu,
-.repo-section,
-.repodrive-legacy-ui {
-  display: none !important;
-}
-
-.topbar {
-  height: 56px;
-  padding: 0 14px;
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  border-bottom: 1px solid var(--mix-line);
-  background: #0d1415;
-  box-shadow: none;
-}
-
-.brand { gap: 8px; font-size: 18px; }
-.brand-logo { width: 86px; height: 30px; }
-.brand .version { display: none; }
-.top-actions { gap: 4px; }
-.top-actions .icon-btn,
-.top-actions .account,
-.top-actions #logoutBtn { display: none; }
-.top-actions #refreshBtn,
-.top-actions #themeToggle { display: inline-flex; }
-.top-actions #refreshBtn { order: 1; }
-.top-actions #themeToggle { order: 2; }
-.top-actions #themeToggle { width: 34px; height: 34px; min-height: 34px; border-radius: 4px; }
-
-.shell {
-  width: 100%;
-  max-width: none;
-  margin: 0;
-  padding: 0;
-}
-
-.dashboard-header {
-  margin: 0;
-}
-
-.cloud-explorer {
-  width: 100%;
-  min-height: calc(100vh - 56px);
-  margin: 0;
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-  background: var(--mix-bg);
-}
-
-.drive-sidebar {
-  background: #0d1415;
-}
-
-.drive-side-head {
-  min-height: 54px;
-  padding: 10px 12px;
-}
-
-.drive-caption {
-  font-weight: 700;
-  letter-spacing: .16em;
-}
-
-.drive-search-wrap {
-  border-radius: 3px;
-  background: #0a1112;
-}
-
-.drive-main {
-  min-height: calc(100vh - 56px);
-  background: #0a1011;
-}
-
-.drive-toolbar {
-  min-height: 50px;
-  background: #0d1415;
-}
-
-.drive-location {
-  background: #0f1718;
-}
-
-.drive-location-title {
-  font-size: 17px;
-}
-
-.drive-file-toolbar {
-  background: #0b1213;
-}
-
-.drive-file-grid {
-  min-height: 220px;
-  align-content: start;
-}
-
-.drive-item {
-  transition: border-color .16s ease, background .16s ease, transform .16s ease;
-}
-
-.drive-item:hover {
-  transform: translateY(-1px);
-}
-
-/* Make the sidebar behave like MiX's mobile drawer instead of stacking above files. */
-@media (max-width: 800px) {
-  .topbar { height: 54px; }
-  .cloud-explorer { min-height: calc(100vh - 54px); position: relative; }
-  .drive-main { min-height: calc(100vh - 54px); }
-  .drive-sidebar {
-    position: fixed;
-    left: 0;
-    top: 54px;
-    bottom: 0;
-    width: min(82vw, 310px);
-    max-height: none;
-    z-index: 90;
-    transform: translateX(-105%);
-    transition: transform .2s ease;
-    box-shadow: 14px 0 32px rgba(0,0,0,.38);
-  }
-  body.drive-menu-open .drive-sidebar { transform: translateX(0); }
-  body.drive-menu-open::after {
-    content: '';
-    position: fixed;
-    inset: 54px 0 0;
-    background: rgba(0,0,0,.45);
-    z-index: 80;
-  }
-  .drive-side-section { max-height: none; }
-  .drive-repo-list { display: flex; grid-template-columns: none; }
-  .drive-side-footer { display: flex; }
-  .drive-menu { display: inline-grid; }
-  .drive-toolbar-actions .drive-icon:nth-child(2) { display: none; }
-  .drive-location { padding: 11px 10px; }
-  .drive-location-actions { display: none; }
-}
-
-@media (max-width: 430px) {
-  .brand-logo { width: 78px; }
-  .topbar { padding: 0 10px; }
-  .drive-file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-}
-
-@media (min-width: 801px) {
-  .drive-menu { display: none; }
-}
-
-/* =========================================================
-   MiX visual pass 2 — tighter geometry, native-looking icons,
-   and a true mobile drawer. Presentation-only overrides.
-   ========================================================= */
-:root {
-  --mix-bg: #0a1113;
-  --mix-header: #0b1517;
-  --mix-surface: #0e191b;
-  --mix-surface-2: #121e20;
-  --mix-surface-3: #172426;
-  --mix-border: #26393b;
-  --mix-border-soft: #1c2d2f;
-  --mix-text: #eef4f3;
-  --mix-muted: #8c9b9b;
-  --mix-accent: #4fc4bc;
-  --mix-accent-dim: #245c5a;
-  --mix-accent-bg: rgba(79,196,188,.12);
-}
-
-html, body { background: var(--mix-bg); }
-body { font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif; }
-
-/* Header: compact like the MiX main bar rather than a web-dashboard navbar. */
-.topbar {
-  height: 54px;
-  min-height: 54px;
-  padding: 0 14px;
-  background: var(--mix-header);
-  border-bottom: 1px solid var(--mix-border);
-}
-.brand { min-width: 0; }
-.brand-logo { width: 92px; height: 32px; object-fit: contain; object-position: left center; }
-.top-actions { margin-left: auto; }
-.top-actions #refreshBtn,
-.top-actions #themeToggle {
-  width: 36px;
-  height: 36px;
-  min-height: 36px;
-  border: 1px solid transparent;
-  background: transparent;
-  color: var(--mix-muted);
-  border-radius: 5px;
-}
-.top-actions #refreshBtn:hover,
-.top-actions #themeToggle:hover { background: var(--mix-surface-2); color: var(--mix-text); border-color: var(--mix-border); }
-
-/* Explorer is edge-to-edge, with the exact compact rhythm used by MiX. */
-.cloud-explorer {
-  min-height: calc(100vh - 54px);
-  grid-template-columns: 258px minmax(0,1fr);
-  border: 0;
-  border-radius: 0;
-  background: var(--mix-bg);
-}
-.drive-sidebar {
-  background: var(--mix-surface);
-  border-right: 1px solid var(--mix-border);
-}
-.drive-side-head {
-  height: 52px;
-  min-height: 52px;
-  padding: 0 12px;
-  border-bottom: 1px solid var(--mix-border-soft);
-}
-.drive-caption {
-  font-size: 11px;
-  letter-spacing: .15em;
-  color: #a6b2b2;
-}
-.drive-side-head .drive-icon {
-  width: 34px;
-  height: 34px;
-  min-height: 34px;
-  color: var(--mix-accent);
-  border-color: var(--mix-border);
-  background: var(--mix-surface-2);
-}
-.drive-search-wrap {
-  height: 38px;
-  margin: 10px 10px 8px;
-  border-radius: 5px;
-  background: #091214;
-  border-color: var(--mix-border);
-}
-.drive-search-wrap:focus-within { border-color: var(--mix-accent-dim); box-shadow: 0 0 0 2px rgba(79,196,188,.08); }
-.drive-search-wrap input { font-size: 12px; }
-.drive-side-section { padding: 0 6px; }
-.drive-side-label { padding: 9px 8px 6px; font-size: 9px; letter-spacing: .16em; }
-.drive-side-label span {
-  display: inline-grid;
-  place-items: center;
-  min-width: 20px;
-  height: 18px;
-  padding: 0 5px;
-  border: 1px solid var(--mix-border);
-  border-radius: 9px;
-  font-size: 9px;
-  letter-spacing: 0;
-}
-.drive-repo-list { gap: 1px; }
-.drive-repo-item {
-  min-height: 50px;
-  padding: 8px 9px 8px 10px;
-  border-left: 2px solid transparent;
-  border-radius: 5px;
-}
-.drive-repo-item:hover { background: var(--mix-surface-2); }
-.drive-repo-item.active {
-  background: var(--mix-accent-bg);
-  border-left-color: var(--mix-accent);
-}
-.drive-repo-item .r-title { gap: 9px; font-size: 12px; }
-.drive-repo-item .r-meta { padding-left: 25px; font-size: 9px; color: #718181; }
-.r-lock { display: grid; place-items: center; width: 16px; height: 16px; flex: 0 0 16px; }
-.mix-repo-svg { width: 15px; height: 15px; fill: none; stroke: #718383; stroke-width: 1.7; }
-.mix-repo-svg.lock { stroke: var(--mix-accent); }
-.drive-side-footer { padding: 10px; border-top-color: var(--mix-border); background: #0c1618; }
-.drive-user { padding: 2px 1px; }
-.drive-avatar { width: 30px; height: 30px; border-radius: 5px; background: var(--mix-accent-dim); color: var(--mix-text); }
-.drive-footer-btn { min-height: 34px; background: var(--mix-surface-2); border-color: var(--mix-border); }
-
-/* Main toolbar + breadcrumb strip. */
-.drive-main { background: var(--mix-bg); }
-.drive-toolbar {
-  min-height: 50px;
-  height: 50px;
-  padding: 7px 10px;
-  background: var(--mix-header);
-  border-bottom: 1px solid var(--mix-border);
-}
-.drive-toolbar-actions { gap: 3px; }
-.drive-icon, .drive-btn, .drive-primary {
-  min-height: 34px;
-  height: 34px;
-  border-radius: 5px;
-  border-color: var(--mix-border);
-  background: var(--mix-surface-2);
-  color: var(--mix-soft);
-  font-size: 13px;
-}
-.drive-icon { width: 34px; padding: 0; }
-.drive-icon:hover, .drive-btn:hover { background: var(--mix-surface-3); border-color: #385557; color: var(--mix-text); }
-.drive-primary {
-  padding: 0 13px;
-  background: var(--mix-accent-dim);
-  border-color: #367a76;
-  color: #eaf8f7;
-}
-.drive-primary:hover { background: #2c6e6b; }
-.mix-menu-glyph,
-.mix-menu-glyph::before,
-.mix-menu-glyph::after {
-  display: block;
-  width: 16px;
-  height: 1.5px;
-  border-radius: 2px;
-  background: currentColor;
-  content: "";
-}
-.mix-menu-glyph { position: relative; }
-.mix-menu-glyph::before { position: absolute; left: 0; top: -5px; }
-.mix-menu-glyph::after { position: absolute; left: 0; top: 5px; }
-.drive-breadcrumbs { gap: 4px; padding: 0 3px; }
-.drive-crumb {
-  padding: 6px 7px;
-  border-radius: 4px;
-  color: #91a2a2;
-  font-size: 12px;
-}
-.drive-crumb:hover { background: var(--mix-surface-2); color: var(--mix-text); }
-.drive-crumb.current { color: var(--mix-text); }
-.drive-crumb-sep { color: #506061; font-size: 14px; }
-
-.drive-location {
-  min-height: 70px;
-  padding: 12px 14px;
-  background: #0c1719;
-  border-bottom: 1px solid var(--mix-border-soft);
-}
-.drive-location-title { font-size: 16px; letter-spacing: -.01em; }
-.drive-location-meta { margin-top: 4px; font-size: 9px; letter-spacing: .08em; }
-.drive-location-actions { gap: 4px; }
-.drive-location-actions .drive-btn { font-size: 11px; }
-
-.drive-file-toolbar {
-  min-height: 50px;
-  padding: 8px 12px;
-  background: var(--mix-bg);
-  border-bottom: 1px solid var(--mix-border-soft);
-}
-.drive-folder-title { gap: 8px; }
-.drive-folder-title > span:first-child { color: var(--mix-accent); font-size: 14px; }
-.drive-folder-title b { font-size: 12px; }
-.drive-folder-title span:last-child { font-size: 9px; color: #728181; }
-.drive-file-actions { gap: 4px; }
-.drive-file-actions input,
-.drive-file-actions select {
-  height: 32px;
-  min-height: 32px;
-  border-radius: 5px;
-  border-color: var(--mix-border);
-  background: #0c1719;
-  font-size: 11px;
-}
-.drive-file-actions input { width: 190px; }
-.drive-file-actions select { width: 92px; }
-.drive-file-actions .drive-btn { height: 32px; min-height: 32px; padding: 0 9px; font-size: 10px; }
-
-/* File cards: compact, tactile, icon-forward, and much closer to MiX's tile rhythm. */
-.drive-file-grid {
-  padding: 10px 12px 14px;
-  grid-template-columns: repeat(4, minmax(150px, 1fr));
-  gap: 6px;
-  background: var(--mix-bg);
-  scrollbar-width: thin;
-  scrollbar-color: #304546 transparent;
-}
-.drive-item {
-  min-height: 84px;
-  padding: 9px 10px;
-  border: 1px solid var(--mix-border-soft);
-  border-radius: 5px;
-  background: #0d181a;
-  box-shadow: none;
-}
-.drive-item:hover {
-  transform: none;
-  background: #111e20;
-  border-color: #355153;
-}
-.drive-item.selected { background: rgba(79,196,188,.10); border-color: #4c8581; }
-.drive-item.folder { background: #0e1a1b; }
-.drive-item.folder:hover { background: #122123; }
-.drive-item-head { align-items: center; gap: 9px; }
-.drive-file-icon {
-  width: 40px;
-  height: 40px;
-  flex: 0 0 40px;
-  border-radius: 5px;
-  border: 1px solid #294043;
-  background: #142123;
-  color: var(--mix-accent);
-  font-size: 20px;
-}
-.drive-item.folder .drive-file-icon {
-  background: rgba(79,196,188,.09);
-  border-color: #315958;
-  color: var(--mix-accent);
-}
-.mix-file-svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; }
-.drive-item-name { font-size: 11px; line-height: 1.3; font-weight: 600; color: #e6eded; }
-.drive-item-meta { margin-top: 8px; padding-top: 7px; border-top: 1px solid #17292b; font-size: 8.5px; color: #748484; }
-.drive-item-check { top: 7px; right: 7px; accent-color: var(--mix-accent); }
-.drive-item-actions { gap: 2px; }
-.drive-item-actions button { width: 26px; height: 26px; border-radius: 4px; }
-.drive-empty { margin: 36px auto; }
-.drive-empty-icon { width: 52px; height: 52px; border-radius: 5px; background: #111e20; border-color: var(--mix-border); color: var(--mix-accent); }
-.drive-statusbar { min-height: 28px; padding: 6px 12px; background: var(--mix-header); border-top-color: var(--mix-border); font-size: 8px; letter-spacing: .08em; }
-
-/* List mode keeps the same visual language but becomes a dense file-server list. */
-.drive-file-grid.list-mode { gap: 2px; }
-.drive-file-grid.list-mode .drive-item {
-  min-height: 44px;
-  padding: 5px 8px;
-  grid-template-columns: 30px minmax(0,1fr) 100px 100px;
-  border-radius: 4px;
-}
-.drive-file-grid.list-mode .drive-file-icon { width: 28px; height: 28px; flex-basis: 28px; }
-.drive-file-grid.list-mode .mix-file-svg { width: 17px; height: 17px; }
-.drive-file-grid.list-mode .drive-item-meta { border-top: 0; padding-top: 0; margin-top: 0; }
-
-/* Desktop drawer/sidebar separation and a more native mobile drawer. */
-@media (max-width: 1050px) {
-  .drive-file-grid { grid-template-columns: repeat(3, minmax(140px,1fr)); }
-}
-
-@media (max-width: 800px) {
-  .topbar { height: 52px; min-height: 52px; padding: 0 9px; }
-  .brand-logo { width: 78px; height: 29px; }
-  .cloud-explorer, .drive-main { min-height: calc(100vh - 52px); }
-  .drive-sidebar {
-    top: 52px;
-    width: min(310px, calc(100vw - 38px));
-    background: #0b1517;
-    border-right: 1px solid #355052;
-    box-shadow: 18px 0 42px rgba(0,0,0,.5);
-    transform: translateX(-105%);
-  }
-  body.drive-menu-open .drive-sidebar { transform: translateX(0); }
-  body.drive-menu-open::after {
-    inset: 52px 0 0;
-    background: rgba(0,0,0,.54);
-    backdrop-filter: blur(2px);
-    z-index: 80;
-  }
-  .drive-side-head { height: 54px; min-height: 54px; }
-  .drive-side-footer { display: flex; }
-  .drive-toolbar { height: 48px; min-height: 48px; padding: 6px 7px; }
-  .drive-menu { display: inline-grid; }
-  .drive-toolbar-actions .drive-icon:nth-child(2) { display: none; }
-  .drive-location { min-height: 62px; padding: 10px 9px; }
-  .drive-location-title { font-size: 15px; }
-  .drive-file-toolbar { min-height: auto; padding: 7px 8px; gap: 7px; }
-  .drive-file-actions { width: 100%; }
-  .drive-file-actions input { flex: 1; width: auto; }
-  .drive-file-actions select { width: 78px; }
-  .drive-file-actions .drive-btn { display: none; }
-  .drive-file-grid { grid-template-columns: repeat(2, minmax(0,1fr)); padding: 7px 7px 12px; gap: 4px; }
-  .drive-item { min-height: 74px; padding: 8px; }
-  .drive-file-icon { width: 36px; height: 36px; flex-basis: 36px; }
-  .drive-item-name { font-size: 10.5px; }
-  .drive-item-meta { font-size: 8px; }
-  .drive-item-actions { display: none !important; }
-}
-
-@media (max-width: 420px) {
-  .brand-logo { width: 72px; }
-  .top-actions #refreshBtn, .top-actions #themeToggle { width: 32px; height: 32px; min-height: 32px; }
-  .drive-toolbar-actions .drive-primary { padding: 0 9px; font-size: 11px; }
-  .drive-file-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
-  .drive-item { min-height: 70px; padding: 7px; }
-  .drive-file-icon { width: 34px; height: 34px; flex-basis: 34px; }
-  .mix-file-svg { width: 19px; height: 19px; }
-}
-
-@media (min-width: 801px) { .drive-menu { display: none; } }
-
-/* Light mode follows the same MiX geometry while using the source project's palette. */
-html[data-theme="light"] body { background: #f7f8fa; color: #343436; }
-html[data-theme="light"] .topbar { background: #edeff5; border-color: #d9dce3; }
-html[data-theme="light"] .cloud-explorer { background: #f9fafd; }
-html[data-theme="light"] .drive-sidebar,
-html[data-theme="light"] .drive-toolbar,
-html[data-theme="light"] .drive-statusbar { background: #edeff5; border-color: #d9dce3; }
-html[data-theme="light"] .drive-main,
-html[data-theme="light"] .drive-file-grid { background: #f9fafd; }
-html[data-theme="light"] .drive-location { background: #f2f4f7; border-color: #d9dce3; }
-html[data-theme="light"] .drive-item,
-html[data-theme="light"] .drive-search-wrap,
-html[data-theme="light"] .drive-file-actions input,
-html[data-theme="light"] .drive-file-actions select { background: #f2f4f7; border-color: #d9dce3; color: #343436; }
-html[data-theme="light"] .drive-item:hover { background: #e9ecf1; }
-html[data-theme="light"] .drive-item-meta { border-color: #e0e3e8; color: #73777d; }
-html[data-theme="light"] .drive-repo-item:hover { background: #e7eaf0; }
-html[data-theme="light"] .drive-repo-item.active { background: rgba(134,140,255,.12); border-left-color: #868cff; }
-html[data-theme="light"] .drive-file-icon { background: #e8ebf0; border-color: #d5d9e0; color: #6f78d7; }
-html[data-theme="light"] .drive-item-name { color: #343436; }
-
-/* ------------------------------------------------------------------
-   MiX HTTP File Server fidelity pass
-   Based on the public MiXiMaX structure: compact header, small 4px
-   radii, Radio Canada/Cascadia-like typography, directory tiles and
-   full-width file rows. See the upstream redesign README/source.
-   ------------------------------------------------------------------ */
-:root {
-  --mix-body-bg: #071011;
-  --mix-body-fg: #101b1d;
-  --mix-body-text: #e5eceb;
-  --mix-body-text-lite: #899a99;
-  --mix-header-bg: #0d1719;
-  --mix-header-lite: #111d1f;
-  --mix-accent-1: #5cc9c2;
-  --mix-accent-2: #f2c14e;
-  --mix-menu-hover-bg: #1a292b;
-  --mix-menu-hover-text: #ffffff;
-  --mix-line: #243537;
-}
-
-[data-theme="light"] {
-  --mix-body-bg: #f1f4f3;
-  --mix-body-fg: #ffffff;
-  --mix-body-text: #263332;
-  --mix-body-text-lite: #6f7d7c;
-  --mix-header-bg: #ffffff;
-  --mix-header-lite: #e8eeec;
-  --mix-accent-1: #198f89;
-  --mix-accent-2: #b07a00;
-  --mix-menu-hover-bg: #e1e8e6;
-  --mix-menu-hover-text: #111918;
-  --mix-line: #cfd9d7;
-}
-
-#appView:not(.hidden) .cloud-explorer,
-#appView:not(.hidden) .drive-main {
-  background: var(--mix-body-bg);
-}
-
-#appView:not(.hidden) .drive-toolbar,
-#appView:not(.hidden) .drive-location,
-#appView:not(.hidden) .drive-statusbar {
-  border-color: var(--mix-line);
-  background: var(--mix-header-bg);
-}
-
-#appView:not(.hidden) .drive-toolbar {
-  min-height: 48px;
-  padding: 5px 12px;
-}
-
-#appView:not(.hidden) .drive-location {
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--mix-line);
-}
-
-#appView:not(.hidden) .drive-location-title,
-#appView:not(.hidden) .drive-folder-title b {
-  font-family: "Cascadia Code", ui-monospace, monospace;
-}
-
-#appView:not(.hidden) .drive-location-title {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-#appView:not(.hidden) .drive-location-meta,
-#appView:not(.hidden) .drive-item-meta,
-#appView:not(.hidden) .drive-item-type,
-#appView:not(.hidden) .drive-statusbar {
-  color: var(--mix-body-text-lite);
-}
-
-#appView:not(.hidden) .drive-file-toolbar {
-  padding: 12px 16px 8px;
-  background: var(--mix-body-bg);
-}
-
-#appView:not(.hidden) .drive-folder-title {
-  min-height: 34px;
-  gap: 8px;
-}
-
-#appView:not(.hidden) .drive-folder-title #drivePathIcon {
-  color: var(--mix-accent-1);
-}
-
-#appView:not(.hidden) .drive-file-actions input,
-#appView:not(.hidden) .drive-file-actions select,
-#appView:not(.hidden) .drive-btn,
-#appView:not(.hidden) .drive-icon {
-  border: 1px solid var(--mix-line);
-  background: var(--mix-body-fg);
-  color: var(--mix-body-text);
-  border-radius: 4px;
-}
-
-#appView:not(.hidden) .drive-icon:hover,
-#appView:not(.hidden) .drive-btn:hover,
-#appView:not(.hidden) .drive-repo-item:hover {
-  background: var(--mix-menu-hover-bg);
-}
-
-#appView:not(.hidden) .drive-primary {
-  border-radius: 4px;
-  background: var(--mix-accent-1);
-  color: #071011;
-  font-weight: 700;
-}
-
-#appView:not(.hidden) .drive-file-grid {
-  display: flex;
-  flex-wrap: wrap;
-  align-content: flex-start;
-  gap: 12px;
-  padding: 4px 16px 24px;
-  overflow: auto;
-}
-
-#appView:not(.hidden) .drive-file-grid .drive-item.folder {
-  flex: 0 0 calc((100% - 48px) / 5);
-  width: calc((100% - 48px) / 5);
-  min-width: 0;
-  min-height: 74px;
-  padding: 12px;
-  border: 0;
-  border-radius: 4px;
-  background: var(--mix-body-fg);
-  box-shadow: none;
-}
-
-#appView:not(.hidden) .drive-file-grid .drive-item.folder:hover {
-  background: var(--mix-menu-hover-bg);
-  transform: none;
-}
-
-#appView:not(.hidden) .drive-file-grid .drive-item.file-row {
-  flex: 0 0 100%;
-  width: 100%;
-  min-height: 52px;
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr) 90px 110px 108px;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border: 0;
-  border-radius: 4px;
-  background: var(--mix-body-fg);
-  box-shadow: none;
-}
-
-#appView:not(.hidden) .drive-file-grid .drive-item.file-row:hover,
-#appView:not(.hidden) .drive-file-grid .drive-item.selected {
-  background: var(--mix-menu-hover-bg);
-}
-
-#appView:not(.hidden) .drive-item-head {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-#appView:not(.hidden) .drive-item-name {
-  color: var(--mix-body-text);
-  font-size: 14px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-#appView:not(.hidden) .drive-file-icon {
-  width: 32px;
-  height: 32px;
-  flex: 0 0 32px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--mix-accent-1);
-}
-
-#appView:not(.hidden) .drive-item.folder .drive-file-icon {
-  width: 34px;
-  height: 34px;
-  background: transparent;
-  color: var(--mix-accent-1);
-}
-
-#appView:not(.hidden) .drive-file-icon svg {
-  width: 24px;
-  height: 24px;
-  stroke: currentColor;
-  fill: none;
-  stroke-width: 1.6;
-}
-
-#appView:not(.hidden) .drive-item-meta,
-#appView:not(.hidden) .drive-item-type {
-  font: 12px/1.2 "Cascadia Code", ui-monospace, monospace;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-#appView:not(.hidden) .drive-item.folder .drive-item-meta {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 9px;
-  font-size: 11px;
-}
-
-#appView:not(.hidden) .drive-item.file-row .drive-item-meta {
-  text-align: right;
-}
-
-#appView:not(.hidden) .drive-item-actions {
-  position: static;
-  display: flex;
-  justify-content: flex-end;
-  gap: 3px;
-  opacity: 0;
-  pointer-events: none;
-}
-
-#appView:not(.hidden) .drive-item.file-row:hover .drive-item-actions,
-#appView:not(.hidden) .drive-item.file-row:focus-within .drive-item-actions {
-  opacity: 1;
-  pointer-events: auto;
-}
-
-#appView:not(.hidden) .drive-item-actions button {
-  width: 30px;
-  height: 30px;
-  border: 0;
-  border-radius: 4px;
-  background: transparent;
-  color: var(--mix-body-text-lite);
-}
-
-#appView:not(.hidden) .drive-item-actions button:hover {
-  background: var(--mix-body-fg);
-  color: var(--mix-accent-1);
-}
-
-#appView:not(.hidden) .drive-item-check {
-  position: absolute !important;
-  top: 7px !important;
-  right: 7px !important;
-  opacity: 0;
-  width: 16px !important;
-  height: 16px !important;
-  z-index: 3;
-}
-
-#appView:not(.hidden) .drive-item.file-row:hover .drive-item-check,
-#appView:not(.hidden) .drive-item.file-row:focus-within .drive-item-check,
-#appView:not(.hidden) .drive-item.file-row.selected .drive-item-check {
-  opacity: 1;
-}
-
-#appView:not(.hidden) .drive-statusbar {
-  min-height: 34px;
-  padding: 7px 16px;
-  border-top: 1px solid var(--mix-line);
-  border-bottom: 0;
-  font: 11px/1 "Cascadia Code", ui-monospace, monospace;
-}
-
-/* MiX-style mobile drawer: compact, right-side, backdrop, no permanent
-   repository panel above the file list. */
-@media (max-width: 800px) {
-  #appView:not(.hidden) .drive-sidebar {
-    position: fixed;
-    inset: 0 0 0 auto;
-    width: min(320px, calc(100vw - 28px));
-    height: 100dvh;
-    max-height: none;
-    z-index: 1000;
-    transform: translateX(105%);
-    background: var(--mix-header-bg);
-    border-left: 1px solid var(--mix-line);
-    border-right: 0;
-    box-shadow: -12px 0 28px rgba(0,0,0,.42);
-    transition: transform .18s linear;
-  }
-
-  body.drive-menu-open::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    z-index: 999;
-    background: rgba(0,0,0,.48);
-    backdrop-filter: blur(3px);
-  }
-
-  body.drive-menu-open .drive-sidebar { transform: translateX(0); }
-
-  #appView:not(.hidden) .drive-side-head {
-    padding: 18px 18px 12px;
-  }
-
-  #appView:not(.hidden) .drive-repo-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    max-height: none;
-    overflow: auto;
-  }
-
-  #appView:not(.hidden) .drive-repo-item {
-    padding: 12px 10px;
-    border-radius: 4px;
-  }
-
-  #appView:not(.hidden) .drive-toolbar {
-    min-height: 46px;
-    padding: 4px 7px;
-  }
-
-  #appView:not(.hidden) .drive-breadcrumbs {
-    min-width: 0;
-  }
-
-  #appView:not(.hidden) .drive-toolbar-actions #driveBack,
-  #appView:not(.hidden) .drive-toolbar-actions #driveUp,
-  #appView:not(.hidden) .drive-toolbar-actions #driveMore {
-    display: none;
-  }
-
-  #appView:not(.hidden) .drive-location {
-    padding: 10px 12px;
-  }
-
-  #appView:not(.hidden) .drive-location-title { font-size: 15px; }
-  #appView:not(.hidden) .drive-location-meta { font-size: 10px; }
-
-  #appView:not(.hidden) .drive-file-toolbar {
-    padding: 9px 10px 6px;
-  }
-
-  #appView:not(.hidden) .drive-file-grid {
-    gap: 6px;
-    padding: 4px 10px 16px;
-  }
-
-  #appView:not(.hidden) .drive-file-grid .drive-item.folder {
-    flex: 0 0 calc((100% - 6px) / 2);
-    width: calc((100% - 6px) / 2);
-    min-height: 72px;
-    padding: 10px;
-  }
-
-  #appView:not(.hidden) .drive-file-grid .drive-item.file-row {
-    grid-template-columns: 34px minmax(0,1fr) 72px;
-    gap: 8px;
-    min-height: 50px;
-    padding: 7px 9px;
-  }
-
-  #appView:not(.hidden) .drive-item.file-row .drive-item-type { display: none; }
-  #appView:not(.hidden) .drive-item.file-row .drive-item-actions { display: none; }
-  #appView:not(.hidden) .drive-item-name { font-size: 13px; }
-  #appView:not(.hidden) .drive-item-meta { font-size: 10px; }
-  #appView:not(.hidden) .drive-item.folder .drive-item-meta { font-size: 10px; }
-
-  #appView:not(.hidden) .drive-side-footer {
-    display: flex;
-    margin-top: auto;
-  }
-}
-
-@media (max-width: 550px) {
-  #appView:not(.hidden) .drive-file-grid .drive-item.folder {
-    flex-basis: 100%;
-    width: 100%;
-  }
-}
-
-/* Full-screen MiX-like media/document preview. */
-#previewModal {
-  width: min(1100px, 100vw);
-  max-width: 100vw;
-  height: min(100dvh, 100vh);
-  max-height: 100dvh;
-  margin: auto;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  background: var(--mix-body-bg);
-  color: var(--mix-body-text);
-  box-shadow: 0 0 50px rgba(0,0,0,.55);
-}
-
-#previewModal::backdrop {
-  background: rgba(0,0,0,.78);
-  backdrop-filter: blur(3px);
-}
-
-#previewModal .dialog {
-  width: 100%;
-  max-width: none;
-  height: 100%;
-  max-height: none;
-  padding: 0;
-  border-radius: 0;
-  background: var(--mix-body-bg) !important;
-  box-shadow: none !important;
-  display: flex;
-  flex-direction: column;
-}
-
-#previewModal .dialog-header {
-  flex: 0 0 52px;
-  margin: 0;
-  padding: 0 10px 0 16px;
-  border-bottom: 1px solid var(--mix-line);
-  background: var(--mix-header-bg);
-  display: flex;
-  align-items: center;
-}
-
-#previewModal .dialog-header h3 {
-  font: 14px/1.2 "Cascadia Code", ui-monospace, monospace;
-  color: var(--mix-body-text);
-}
-
-#previewModal .dialog-header .icon-btn {
-  min-height: 34px;
-  width: 34px;
-  border-radius: 4px;
-  background: transparent;
-  border: 0;
-}
-
-#previewContent {
-  flex: 1 1 auto;
-  min-height: 0;
-  max-height: none;
-  padding: 12px;
-  border: 0;
-  border-radius: 0;
-  background: var(--mix-body-bg);
-  overflow: auto;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.preview-loading,
-.preview-info,
-.font-preview {
-  max-width: 720px;
-  width: min(100%, 720px);
-  padding: 28px;
-  text-align: center;
-  color: var(--mix-body-text-lite);
-}
-
-.preview-info strong { color: var(--mix-body-text); font-size: 16px; }
-.preview-info p { margin: 12px auto; line-height: 1.55; max-width: 600px; }
-.preview-big-icon { margin: 0 auto 12px; color: var(--mix-accent-1); }
-.preview-big-icon svg { width: 54px; height: 54px; stroke: currentColor; fill:none; }
-.preview-actions { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-top:16px; }
-.preview-source-label { width:100%; padding:0 0 8px; color:var(--mix-body-text-lite); font:11px/1 "Cascadia Code",ui-monospace,monospace; }
-
-.preview-media { width:100%; height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
-.preview-media img { max-width:100%; max-height:calc(100dvh - 100px); width:auto; height:auto; object-fit:contain; border-radius:4px; }
-.preview-media video { width:min(100%, 1000px); max-height:calc(100dvh - 120px); background:#000; border-radius:4px; }
-.preview-media audio { width:min(100%, 680px); }
-.audio-art { width:90px; height:90px; border-radius:4px; display:grid; place-items:center; background:var(--mix-body-fg); color:var(--mix-accent-1); font-size:42px; }
-.media-note { color:var(--mix-body-text-lite); font-size:11px; text-align:center; }
-
-#previewContent iframe { width:100%; height:100%; min-height:calc(100dvh - 64px); border:0; border-radius:0; background:#fff; }
-
-.preview-text {
-  width:100%;
-  min-height:100%;
-  margin:0;
-  padding:16px;
-  text-align:left;
-  overflow:auto;
-  white-space:pre-wrap;
-  overflow-wrap:anywhere;
-  color:var(--mix-body-text);
-  background:var(--mix-body-fg);
-  border-radius:4px;
-  font:13px/1.65 "Cascadia Code",ui-monospace,SFMono-Regular,Consolas,monospace;
-}
-
-.preview-table-wrap { width:100%; height:100%; overflow:auto; align-self:stretch; }
-.preview-table { border-collapse:collapse; width:max-content; min-width:100%; background:var(--mix-body-fg); font-size:12px; }
-.preview-table th,.preview-table td { border:1px solid var(--mix-line); padding:8px 10px; text-align:left; vertical-align:top; }
-.preview-table th { position:sticky; top:0; background:var(--mix-header-bg); color:var(--mix-body-text); }
-.preview-table td { color:var(--mix-body-text-lite); }
-
-.markdown-render { width:min(100%, 820px); align-self:flex-start; padding:24px; background:var(--mix-body-fg); border-radius:4px; line-height:1.65; }
-.markdown-render h1,.markdown-render h2,.markdown-render h3,.markdown-render h4,.markdown-render h5,.markdown-render h6 { margin:0 0 12px; color:var(--mix-body-text); }
-.markdown-render p { margin:0 0 12px; }
-.markdown-render code { padding:2px 4px; border-radius:3px; background:var(--mix-body-bg); }
-.markdown-render blockquote { margin:10px 0; padding:8px 12px; border-left:3px solid var(--mix-accent-1); color:var(--mix-body-text-lite); }
-.markdown-render li { margin-left:20px; }
-
-.font-preview { background:var(--mix-body-fg); border-radius:4px; color:var(--mix-body-text); }
-.font-sample { margin:18px 0; font-size:64px; }
-.font-sample.small { font-size:24px; }
-
-@media (max-width:550px) {
-  #previewModal .dialog-header { flex-basis:48px; padding-left:10px; }
-  #previewContent { padding:8px; }
-  .preview-text { padding:12px; font-size:12px; }
-  .markdown-render { padding:16px; }
-  .font-sample { font-size:42px; }
-}
-
-/* Final mobile drawer fix: one authoritative rule set.  The repository
-   picker must sit above the backdrop and must never leave a permanent blur. */
-@media (max-width: 800px) {
-  body.drive-menu-open { overflow: hidden; }
-
-  #appView:not(.hidden) .drive-sidebar {
-    position: fixed !important;
-    top: 0 !important;
-    left: 0 !important;
-    right: auto !important;
-    bottom: 0 !important;
-    width: min(310px, calc(100vw - 34px)) !important;
-    height: 100dvh !important;
-    max-height: none !important;
-    z-index: 1001 !important;
-    transform: translate3d(-105%, 0, 0) !important;
-    visibility: hidden;
-    opacity: 1 !important;
-    transition: transform .2s ease, visibility 0s linear .2s;
-    background: var(--mix-header-bg, #0b1517) !important;
-    border-right: 1px solid var(--mix-line, #294142) !important;
-    border-left: 0 !important;
-    box-shadow: 14px 0 32px rgba(0,0,0,.5) !important;
-    overflow: hidden auto !important;
-  }
-
-  body.drive-menu-open #appView:not(.hidden) .drive-sidebar {
-    transform: translate3d(0, 0, 0) !important;
-    visibility: visible;
-    transition: transform .2s ease;
-  }
-
-  /* Use the backdrop only as a sibling layer; never blur the drawer itself. */
-  body.drive-menu-open::before {
-    content: "";
-    position: fixed !important;
-    inset: 0 !important;
-    z-index: 1000 !important;
-    background: rgba(0,0,0,.56) !important;
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
-  }
-
-  body.drive-menu-open::after { display: none !important; }
-
-  #appView:not(.hidden) .drive-sidebar .drive-side-head {
-    position: sticky;
-    top: 0;
-    z-index: 2;
-    background: var(--mix-header-bg, #0b1517);
-  }
-
-  #appView:not(.hidden) .drive-sidebar .drive-search-wrap {
-    margin: 8px 10px;
-  }
-
-  #appView:not(.hidden) .drive-repo-list {
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 2px !important;
-    max-height: none !important;
-    overflow: visible !important;
-  }
-
-  #appView:not(.hidden) .drive-repo-item {
-    min-height: 52px;
-    padding: 10px 12px !important;
-    cursor: pointer;
-    -webkit-tap-highlight-color: transparent;
-  }
-
-  #appView:not(.hidden) .drive-menu {
-    position: relative;
-    z-index: 1002;
-    touch-action: manipulation;
-  }
+  .drive-file-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .drive-item-name { font-size:.72rem; }
 }
