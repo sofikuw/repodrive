@@ -694,8 +694,13 @@
   function buildPath(filePath) {
     const raw = safePath(filePath);
     if (!raw) throw new Error(`Unsafe file path: ${filePath}`);
+    // Prefer current explorer folder when using the MiX drive UI
+    if (selected && typeof drivePath === 'string') {
+      const name = raw.split('/').pop();
+      return [drivePath, name].filter(Boolean).join('/');
+    }
     const folder = categoryFor(raw.split('/').pop());
-    const prefix = els.prefix.value.trim().replace(/^\/+|\/+$/g, '');
+    const prefix = (els.prefix?.value || '').trim().replace(/^\/+|\/+$/g, '');
     const name = raw.split('/').pop();
     return [prefix, folder, name].filter(Boolean).join('/');
   }
@@ -717,29 +722,52 @@
     return out;
   }
 
-  async function addPending(list) {
+  async function addPending(list, autoCommit = false) {
     try {
+      if (!selected) {
+        toast('Select a repository first.', 'error');
+        return;
+      }
       const collected = collectFiles(list);
-      
+
       // Encrypt files if enabled
-      if (els.encryptToggle.checked) {
+      if (els.encryptToggle && els.encryptToggle.checked) {
         const password = sessionStorage.getItem('encryption_password') || prompt('Enter encryption password:');
         if (password) {
           sessionStorage.setItem('encryption_password', password);
-          // Files will be encrypted during upload
           toast('Files will be encrypted before upload 🔒', 'good');
         }
       }
-      
+
       pending = [...pending, ...collected];
       const dedupe = new Map(pending.map(x => [x.destPath, x]));
       pending = [...dedupe.values()];
       renderPending();
+      updateDrivePendingBar();
       status('');
+      toast(`${collected.length} file${collected.length === 1 ? '' : 's'} staged for upload`, 'good');
+
+      // Auto-commit from the explorer Upload button / drop zone
+      if (autoCommit) {
+        await publish();
+      }
     } catch (e) {
       status(e.message, 'error');
       toast(e.message, 'error');
     }
+  }
+
+  function updateDrivePendingBar() {
+    const bar = document.getElementById('drivePendingBar');
+    if (!bar) return;
+    if (!pending.length) {
+      bar.classList.add('hidden');
+      return;
+    }
+    bar.classList.remove('hidden');
+    const total = pending.reduce((n, x) => n + (x.file?.size || 0), 0);
+    const label = bar.querySelector('.drive-pending-label');
+    if (label) label.textContent = `${pending.length} file${pending.length === 1 ? '' : 's'} · ${fmt(total)} ready to commit`;
   }
 
   function renderPending() {
@@ -811,7 +839,7 @@
     let data = await file.arrayBuffer();
     
     // Encrypt if enabled
-    if (els.encryptToggle.checked) {
+    if (els.encryptToggle && els.encryptToggle.checked) {
       const password = sessionStorage.getItem('encryption_password');
       if (password) {
         data = await encryptFileData(data, password);
@@ -829,15 +857,18 @@
 
   async function publish() {
     if (!selected || !pending.length) return;
-    els.commitBtn.disabled = true;
+    if (els.commitBtn) els.commitBtn.disabled = true;
     
-    // Show progress
+    // Show progress (legacy bar if present, else toast)
     const progressBar = document.querySelector('.progress-fill');
     const progressLabel = document.querySelector('.progress-label');
-    els.uploadProgress.classList.remove('hidden');
+    if (els.uploadProgress) els.uploadProgress.classList.remove('hidden');
+    if (els.driveSyncStatus) els.driveSyncStatus.textContent = 'Uploading…';
+    toast(`Uploading ${pending.length} file${pending.length === 1 ? '' : 's'}…`, '');
     
     try {
-      const owner = selected.owner, repo = selected.name, branch = els.branchSelect.value;
+      const owner = selected.owner, repo = selected.name;
+      const branch = (els.branchSelect && els.branchSelect.value) || selected.default_branch || 'main';
       status('Reading current branch…');
       const ref = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/ref/heads/${encodeURIComponent(branch)}`);
       const head = ref.object.sha;
@@ -847,8 +878,9 @@
       for (let i = 0; i < pending.length; i++) {
         const x = pending[i];
         const percent = ((i + 1) / pending.length * 100).toFixed(1);
-        progressBar.style.width = percent + '%';
-        progressLabel.textContent = `${i+1}/${pending.length} (${percent}%)`;
+        if (progressBar) progressBar.style.width = percent + '%';
+        if (progressLabel) progressLabel.textContent = `${i+1}/${pending.length} (${percent}%)`;
+        if (els.driveSyncStatus) els.driveSyncStatus.textContent = `Uploading ${i+1}/${pending.length}`;
         status(`Uploading ${i+1}/${pending.length}: ${x.destPath}`);
         
         const blob = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/blobs`, {
@@ -866,7 +898,7 @@
         body: JSON.stringify({ base_tree: parent.tree.sha, tree })
       });
       
-      const message = els.commitMessage.value.trim() || 'Save files with RepoDrive';
+      const message = (els.commitMessage && els.commitMessage.value.trim()) || `Upload ${tree.length} file${tree.length === 1 ? '' : 's'} via RepoDrive`;
       const commit = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/commits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -888,22 +920,25 @@
       if (!updated.ok) throw new Error(updated.status === 409 || updated.status === 422 ? 'The branch changed while uploading. Nothing was force-pushed; refresh and retry.' : data?.message || `Could not update branch (${updated.status}).`);
       
       pending = [];
-      els.filePicker.value = '';
-      els.folderPicker.value = '';
+      if (els.filePicker) els.filePicker.value = '';
+      if (els.folderPicker) els.folderPicker.value = '';
       renderPending();
-      progressBar.style.width = '100%';
-      progressLabel.textContent = 'Complete!';
-      setTimeout(() => els.uploadProgress.classList.add('hidden'), 2000);
+      updateDrivePendingBar();
+      if (progressBar) progressBar.style.width = '100%';
+      if (progressLabel) progressLabel.textContent = 'Complete!';
+      if (els.uploadProgress) setTimeout(() => els.uploadProgress.classList.add('hidden'), 2000);
       status(`✅ Saved ${tree.length} file${tree.length === 1 ? '' : 's'} in one commit.`, 'good');
-      toast('✅ Batch committed to GitHub.', 'good');
+      toast('✅ Uploaded to GitHub.', 'good');
       await loadRepos();
       await loadTree();
     } catch (e) {
       status(e.message, 'error');
+      toast(e.message || 'Upload failed', 'error');
       if (e.status === 401) { clearSession(); location.reload(); }
     } finally {
-      els.commitBtn.disabled = !selected || !pending.length;
-      setTimeout(() => els.uploadProgress.classList.add('hidden'), 3000);
+      if (els.commitBtn) els.commitBtn.disabled = !selected || !pending.length;
+      if (els.uploadProgress) setTimeout(() => els.uploadProgress.classList.add('hidden'), 3000);
+      updateDrivePendingBar();
     }
   }
 
@@ -1541,6 +1576,53 @@ jobs:
     els.driveBranchStatus.textContent = `branch ${els.branchSelect.value || selected.default_branch}`;
   }
 
+  function bindLongPress(el, onLongPress) {
+    let timer = null;
+    let moved = false;
+    const start = (e) => {
+      moved = false;
+      timer = setTimeout(() => {
+        timer = null;
+        onLongPress(e);
+      }, 520);
+    };
+    const cancel = () => { if (timer) { clearTimeout(timer); timer = null; } };
+    el.addEventListener('touchstart', start, { passive: true });
+    el.addEventListener('mousedown', start);
+    el.addEventListener('touchmove', () => { moved = true; cancel(); }, { passive: true });
+    el.addEventListener('mousemove', (e) => { if (e.buttons) { moved = true; cancel(); } });
+    el.addEventListener('touchend', cancel);
+    el.addEventListener('mouseup', cancel);
+    el.addEventListener('mouseleave', cancel);
+    el.addEventListener('contextmenu', (e) => { e.preventDefault(); onLongPress(e); });
+  }
+
+  async function deleteFolderContents(folderPath) {
+    if (!selected) return;
+    const prefix = folderPath.replace(/\/$/, '') + '/';
+    const paths = treeEntries.filter(x => x.path === folderPath || x.path.startsWith(prefix)).map(x => x.path);
+    if (!paths.length) {
+      toast('Folder is already empty on GitHub.', '');
+      return;
+    }
+    if (!confirm(`Delete folder "${folderPath.split('/').pop()}" and ${paths.length} item${paths.length === 1 ? '' : 's'}?\nThis creates one commit.`)) return;
+    selectedTree.clear();
+    paths.forEach(p => selectedTree.add(p));
+    await mutateTree('delete');
+    selectedTree.clear();
+    renderDriveFiles();
+  }
+
+  async function deleteSingleFile(path) {
+    if (!selected) return;
+    if (!confirm(`Delete "${path.split('/').pop()}"?\nThis creates one commit.`)) return;
+    selectedTree.clear();
+    selectedTree.add(path);
+    await mutateTree('delete');
+    selectedTree.clear();
+    renderDriveFiles();
+  }
+
   function renderDriveFiles() {
     if (!els.driveFileGrid) return;
     renderDriveLocation();
@@ -1551,10 +1633,28 @@ jobs:
       files = files.filter(x => x.path.split('/').pop().toLowerCase().includes(q));
     }
     const sort = els.driveSort?.value || 'name';
-    const cmp = (a,b) => sort === 'size' ? (b.size-a.size) || a.name.localeCompare(b.name) : a.name.localeCompare(b.name);
-    folders.sort(cmp); files.sort(cmp);
+    const folderCmp = (a, b) => {
+      if (sort === 'size') return (b.size - a.size) || a.name.localeCompare(b.name);
+      if (sort === 'type') return a.name.localeCompare(b.name);
+      return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+    };
+    const fileCmp = (a, b) => {
+      const an = a.path.split('/').pop();
+      const bn = b.path.split('/').pop();
+      if (sort === 'size') return (b.size - a.size) || an.localeCompare(bn);
+      if (sort === 'type') {
+        const ae = getFileExtension(a.path);
+        const be = getFileExtension(b.path);
+        return ae.localeCompare(be) || an.localeCompare(bn);
+      }
+      if (sort === 'recent') return (b.size - a.size) || an.localeCompare(bn); // size as proxy; Git tree has no mtime
+      return an.localeCompare(bn, undefined, { sensitivity: 'base' });
+    };
+    folders.sort(folderCmp);
+    files.sort(fileCmp);
     const total = folders.length + files.length;
     els.driveItemCount.textContent = `${total} item${total === 1 ? '' : 's'}`;
+    // Default to MiXplorer-style grid tiles
     els.driveFileGrid.classList.remove('list-mode');
     els.driveFileGrid.innerHTML = '';
     els.driveEmpty.classList.toggle('hidden', total !== 0);
@@ -1563,33 +1663,45 @@ jobs:
     for (const folder of folders) {
       const item = document.createElement('article');
       item.className = 'drive-item folder';
-      item.innerHTML = `<div class="drive-item-head"><div class="drive-file-icon">${driveFileIcon('',true)}</div><div class="drive-item-name">${escapeHtml(folder.name)}</div></div><div class="drive-item-meta"><span>${folder.files} file${folder.files===1?'':'s'}</span><span>${fmt(folder.size)}</span></div>`;
+      item.innerHTML = `<div class="drive-item-head"><div class="drive-file-icon folder-icon">${driveFileIcon('',true)}</div><div class="drive-item-name">${escapeHtml(folder.name)}</div></div><div class="drive-item-meta"><span>${folder.files} file${folder.files===1?'':'s'}</span><span>${fmt(folder.size)}</span></div>`;
       item.addEventListener('click', () => {
         driveHistory.push(drivePath);
         drivePath = folder.path;
         renderDriveFiles();
+      });
+      bindLongPress(item, (e) => {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        deleteFolderContents(folder.path);
       });
       els.driveFileGrid.appendChild(item);
     }
     for (const f of files) {
       const name = f.path.split('/').pop();
       const checked = selectedTree.has(f.path);
+      const ext = (getFileExtension(f.path) || 'FILE').toUpperCase();
       const item = document.createElement('article');
       item.className = `drive-item file-row${checked ? ' selected' : ''}`;
-      item.innerHTML = `<input class="drive-item-check" type="checkbox" ${checked ? 'checked' : ''} aria-label="Select ${escapeHtml(name)}"><div class="drive-item-head"><div class="drive-file-icon">${driveFileIcon(f.path)}</div><div class="drive-item-name" title="${escapeHtml(f.path)}">${escapeHtml(name)}</div></div><div class="drive-item-type">${escapeHtml((f.path.split('.').pop()||'FILE').toUpperCase())}</div><div class="drive-item-meta"><span>${fmt(f.size)}</span></div><div class="drive-item-actions"><button data-action="preview" title="Preview">◉</button><button data-action="favorite" title="Favorite">★</button><button data-action="share" title="Share">⌯</button></div>`;
-      const cb=item.querySelector('.drive-item-check');
+      item.innerHTML = `<input class="drive-item-check" type="checkbox" ${checked ? 'checked' : ''} aria-label="Select ${escapeHtml(name)}"><div class="drive-item-head"><div class="drive-file-icon">${driveFileIcon(f.path)}</div><div class="drive-item-name" title="${escapeHtml(f.path)}">${escapeHtml(name)}</div></div><div class="drive-item-type">${escapeHtml(ext)}</div><div class="drive-item-meta"><span>${fmt(f.size)}</span></div><div class="drive-item-actions"><button data-action="preview" title="Preview">◉</button><button data-action="delete" title="Delete">🗑</button><button data-action="share" title="Share">⌯</button></div>`;
+      const cb = item.querySelector('.drive-item-check');
       cb.addEventListener('click', e => e.stopPropagation());
-      cb.addEventListener('change', () => { cb.checked ? selectedTree.add(f.path) : selectedTree.delete(f.path); item.classList.toggle('selected',cb.checked); renderBulk(); });
+      cb.addEventListener('change', () => { cb.checked ? selectedTree.add(f.path) : selectedTree.delete(f.path); item.classList.toggle('selected', cb.checked); renderBulk(); });
       item.addEventListener('dblclick', () => previewFile(f.path));
       item.addEventListener('click', e => { if (e.target.closest('button') || e.target.closest('input')) return; previewFile(f.path); });
-      item.querySelector('[data-action="preview"]').addEventListener('click', () => previewFile(f.path));
-      item.querySelector('[data-action="favorite"]').addEventListener('click', () => toggleFavorite(f.path));
-      item.querySelector('[data-action="share"]').addEventListener('click', () => shareFile(f.path));
+      item.querySelector('[data-action="preview"]').addEventListener('click', e => { e.stopPropagation(); previewFile(f.path); });
+      item.querySelector('[data-action="delete"]').addEventListener('click', e => { e.stopPropagation(); deleteSingleFile(f.path); });
+      item.querySelector('[data-action="share"]').addEventListener('click', e => { e.stopPropagation(); shareFile(f.path); });
+      bindLongPress(item, (e) => {
+        e.preventDefault?.();
+        e.stopPropagation?.();
+        deleteSingleFile(f.path);
+      });
       els.driveFileGrid.appendChild(item);
     }
-    const sum = treeEntries.reduce((n,x)=>n+x.size,0);
+    const sum = treeEntries.reduce((n, x) => n + x.size, 0);
     els.driveStorageStatus.textContent = `${treeEntries.length} files · ${fmt(sum)}`;
-    els.driveSyncStatus.textContent = `Synced ${new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})}`;
+    els.driveSyncStatus.textContent = `Synced ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    updateDrivePendingBar();
   }
 
   function driveGoUp() {
@@ -1840,8 +1952,8 @@ jobs:
   if (els.prefix) els.prefix.addEventListener('input', () => { pending = pending.map(x => ({ ...x, destPath: buildPath(x.sourcePath) })); renderPending(); });
   if (els.pickFiles) els.pickFiles.addEventListener('click', () => els.filePicker?.click());
   if (els.pickFolder) els.pickFolder.addEventListener('click', () => els.folderPicker?.click());
-  if (els.filePicker) els.filePicker.addEventListener('change', e => addPending(e.target.files));
-  if (els.folderPicker) els.folderPicker.addEventListener('change', e => addPending(e.target.files));
+  // filePicker change is handled in the drive section below (supports auto-commit)
+  if (els.folderPicker) els.folderPicker.addEventListener('change', e => addPending(e.target.files, false));
   if (els.clearSelection) els.clearSelection.addEventListener('click', () => { pending = []; if (els.filePicker) els.filePicker.value = ''; if (els.folderPicker) els.folderPicker.value = ''; renderPending(); });
   if (els.exportPending) els.exportPending.addEventListener('click', exportPendingList);
   
@@ -1975,26 +2087,54 @@ jobs:
   if (els.driveRepoSearch) els.driveRepoSearch.addEventListener('input', renderDriveRepos);
   if (els.driveNewRepo) els.driveNewRepo.addEventListener('click', () => els.newRepoBtn.click());
   if (els.driveSignOut) els.driveSignOut.addEventListener('click', () => { clearSession(true); location.reload(); });
-  if (els.driveUpload) els.driveUpload.addEventListener('click', () => els.filePicker.click());
-  if (els.driveEmptyUpload) els.driveEmptyUpload.addEventListener('click', () => els.filePicker.click());
+  // Drive upload: open picker and auto-commit into current folder
+  const openDriveUpload = () => {
+    if (!selected) return toast('Select a repository first.', 'error');
+    if (!els.filePicker) return toast('File picker unavailable.', 'error');
+    els.filePicker.value = '';
+    els.filePicker.dataset.driveAuto = '1';
+    els.filePicker.click();
+  };
+  if (els.driveUpload) els.driveUpload.addEventListener('click', openDriveUpload);
+  if (els.driveEmptyUpload) els.driveEmptyUpload.addEventListener('click', openDriveUpload);
   if (els.driveRefresh) els.driveRefresh.addEventListener('click', loadTree);
-  if (els.driveBack) els.driveBack.addEventListener('click', () => { if (driveHistory.length) drivePath=driveHistory.pop(); else driveGoUp(); renderDriveFiles(); });
+  if (els.driveBack) els.driveBack.addEventListener('click', () => { if (driveHistory.length) drivePath = driveHistory.pop(); else driveGoUp(); renderDriveFiles(); });
   if (els.driveUp) els.driveUp.addEventListener('click', driveGoUp);
   if (els.driveFileSearch) els.driveFileSearch.addEventListener('input', renderDriveFiles);
   if (els.driveSort) els.driveSort.addEventListener('change', renderDriveFiles);
   if (els.driveSelectAll) els.driveSelectAll.addEventListener('click', () => {
-    const {files}=driveFolderData(); files.forEach(f=>selectedTree.add(f.path)); renderDriveFiles(); renderBulk();
+    const { files } = driveFolderData();
+    files.forEach(f => selectedTree.add(f.path));
+    renderDriveFiles();
+    renderBulk();
   });
   if (els.driveMore) els.driveMore.addEventListener('click', () => {
-    if (!selected) return toast('Select a repository first.','error');
-    toast('Use the action buttons below the explorer for analytics, backup, WebDAV and reports.','');
+    if (!selected) return toast('Select a repository first.', 'error');
+    toast('Long-press a folder or file to delete. Upload commits into the current folder.', '');
   });
   if (els.driveDropZone) {
-    ['dragenter','dragover'].forEach(t => els.driveDropZone.addEventListener(t,e=>{e.preventDefault(); els.driveDropZone.classList.add('drag');}));
-    ['dragleave','drop'].forEach(t => els.driveDropZone.addEventListener(t,e=>{e.preventDefault(); els.driveDropZone.classList.remove('drag');}));
-    els.driveDropZone.addEventListener('drop', e => addPending(e.dataTransfer.files));
+    ['dragenter', 'dragover'].forEach(t => els.driveDropZone.addEventListener(t, e => { e.preventDefault(); els.driveDropZone.classList.add('drag'); }));
+    ['dragleave', 'drop'].forEach(t => els.driveDropZone.addEventListener(t, e => { e.preventDefault(); els.driveDropZone.classList.remove('drag'); }));
+    els.driveDropZone.addEventListener('drop', e => addPending(e.dataTransfer.files, true));
   }
-  if (els.filePicker) els.filePicker.addEventListener('change', () => setTimeout(renderDriveFiles, 0));
+  // filePicker change: when opened from drive UI, auto-commit
+  if (els.filePicker) {
+    els.filePicker.addEventListener('change', async (e) => {
+      const auto = els.filePicker.dataset.driveAuto === '1';
+      els.filePicker.dataset.driveAuto = '';
+      if (!e.target.files?.length) return;
+      await addPending(e.target.files, auto);
+      setTimeout(renderDriveFiles, 0);
+    });
+  }
+  // Pending bar actions
+  document.getElementById('driveCommitBtn')?.addEventListener('click', () => publish());
+  document.getElementById('driveClearPending')?.addEventListener('click', () => {
+    pending = [];
+    renderPending();
+    updateDrivePendingBar();
+    toast('Cleared staged files.', '');
+  });
   if (me && els.driveUserName) { els.driveUserName.textContent=me.login; els.driveAvatar.textContent=(me.login||'?').slice(0,1).toUpperCase(); }
 
   // Keyboard shortcuts

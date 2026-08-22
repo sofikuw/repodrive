@@ -161,6 +161,15 @@
             <button id="driveEmptyUpload" class="drive-primary">＋ Upload files</button>
           </div>
 
+          <!-- Staged upload bar -->
+          <div id="drivePendingBar" class="drive-pending-bar hidden">
+            <span class="drive-pending-label">0 files ready</span>
+            <div class="drive-pending-actions">
+              <button type="button" id="driveClearPending" class="drive-btn">Clear</button>
+              <button type="button" id="driveCommitBtn" class="drive-primary">Commit upload</button>
+            </div>
+          </div>
+
           <div class="drive-statusbar">
             <span id="driveStorageStatus">—</span><span>•</span>
             <span id="driveBranchStatus">—</span><span>•</span>

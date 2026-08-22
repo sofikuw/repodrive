@@ -3360,3 +3360,197 @@ html[data-theme="light"] .drive-item-name { color: #343436; }
     touch-action: manipulation;
   }
 }
+
+/* ========== Clean MiXplorer tile polish ========== */
+.drive-file-grid {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+  gap: 10px !important;
+  padding: 12px !important;
+  align-content: start;
+}
+
+.drive-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 14px 8px 10px !important;
+  border-radius: 10px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  min-height: 118px;
+  transition: background .15s ease, border-color .15s ease, transform .12s ease;
+}
+
+.drive-item:hover {
+  background: rgba(30, 80, 80, 0.14) !important;
+  border-color: rgba(90, 155, 151, 0.35) !important;
+}
+
+.drive-item.selected {
+  background: rgba(30, 80, 80, 0.28) !important;
+  border-color: #5a9b97 !important;
+}
+
+.drive-item .drive-file-icon {
+  width: 56px !important;
+  height: 48px !important;
+  display: grid;
+  place-items: center;
+  margin: 0 auto 8px;
+  font-size: 0;
+}
+
+.drive-item .drive-file-icon svg,
+.drive-item .mix-file-svg {
+  width: 48px;
+  height: 42px;
+}
+
+/* Yellow MiXplorer-style folders */
+.drive-item.folder .drive-file-icon,
+.drive-item.folder .folder-icon {
+  background: linear-gradient(180deg, #f6d56a 0%, #e8b93a 55%, #d4a02a 100%) !important;
+  border-radius: 6px 6px 4px 4px;
+  box-shadow: 0 2px 0 #b8861e, 0 3px 8px rgba(0,0,0,.25);
+  color: #8a5a10 !important;
+  position: relative;
+}
+
+.drive-item.folder .drive-file-icon::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: 6px;
+  width: 18px;
+  height: 8px;
+  background: linear-gradient(180deg, #f0c94e, #d9a82e);
+  border-radius: 3px 3px 0 0;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.35);
+}
+
+.drive-item.folder .mix-file-svg {
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+
+.drive-item-name {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+  line-height: 1.25 !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: var(--text-primary);
+}
+
+.drive-item-meta {
+  font-size: 10px !important;
+  color: var(--text-secondary) !important;
+  margin-top: 4px !important;
+  justify-content: center !important;
+  gap: 6px !important;
+}
+
+.drive-item-type {
+  display: none; /* cleaner tiles; type still available in list-mode if re-enabled */
+}
+
+.drive-item-check {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  opacity: 0;
+  transition: opacity .12s ease;
+}
+.drive-item:hover .drive-item-check,
+.drive-item.selected .drive-item-check {
+  opacity: 1;
+}
+
+.drive-item-actions {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  opacity: 0;
+  gap: 2px;
+}
+.drive-item:hover .drive-item-actions {
+  opacity: 1;
+  display: flex;
+}
+.drive-item-actions button {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+}
+.drive-item-actions button:hover {
+  color: var(--text-primary);
+  border-color: var(--accent-strong);
+}
+
+/* File-type icon colors */
+.drive-item:not(.folder) .mix-file-svg {
+  stroke: #6fc2bd;
+  fill: none;
+  stroke-width: 1.6;
+}
+.drive-item:not(.folder) .drive-file-icon {
+  background: rgba(30, 80, 80, 0.18);
+  border-radius: 10px;
+  border: 1px solid rgba(90, 155, 151, 0.25);
+}
+
+/* Pending upload bar */
+.drive-pending-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--border);
+  background: rgba(30, 80, 80, 0.2);
+  flex-shrink: 0;
+}
+.drive-pending-bar.hidden { display: none !important; }
+.drive-pending-label {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+.drive-pending-actions {
+  display: flex;
+  gap: 8px;
+}
+
+/* Long-press feedback */
+.drive-item.pressing {
+  transform: scale(0.96);
+  opacity: 0.85;
+}
+
+@media (max-width: 600px) {
+  .drive-file-grid {
+    grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)) !important;
+    gap: 8px !important;
+    padding: 10px !important;
+  }
+  .drive-item {
+    min-height: 108px;
+    padding: 12px 6px 8px !important;
+  }
+  .drive-item .drive-file-icon {
+    width: 50px !important;
+    height: 42px !important;
+  }
+}
