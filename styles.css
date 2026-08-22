@@ -1842,3 +1842,418 @@ input, select, textarea {
   .file-actions { grid-template-columns: minmax(0,1fr) repeat(2, auto); }
   .file-actions .secondary-btn:nth-last-child(-n+2) { display: none; }
 }
+
+
+/* =========================================================
+   RepoDrive minimal cloud UI pass
+   Goal: MiX-style file manager, not a dashboard.
+   ========================================================= */
+
+/* Remove the "marketing dashboard" chrome while preserving the
+   underlying logic and cloud explorer. */
+.shell:has(#appView:not(.hidden)) {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+#appView:not(.hidden) .dashboard-header > .appbar,
+#appView:not(.hidden) .dashboard-header > .stats-grid,
+#appView:not(.hidden) .dashboard-header > .access-panel,
+#appView:not(.hidden) .dashboard-header > .global-search,
+#appView:not(.hidden) .dashboard-header > .quick-actions-menu,
+#appView:not(.hidden) > .repo-section,
+#appView:not(.hidden) > #workspace {
+  display: none !important;
+}
+
+#appView:not(.hidden) .cloud-explorer {
+  margin: 0;
+  width: 100%;
+  min-height: calc(100vh - 54px);
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+/* Flat, compact top chrome. */
+.topbar {
+  height: 54px;
+  padding: 0 14px;
+  border-radius: 0;
+  background: #05090a;
+  border-bottom: 1px solid #1d2a2b;
+  box-shadow: none;
+}
+.brand-logo { width: 82px; height: 30px; }
+.version { display:none; }
+.top-actions { gap: 4px; }
+.top-actions .icon-btn {
+  width: 34px;
+  min-height: 34px;
+  border-radius: 4px;
+  padding: 0;
+  background: #0b1314;
+  border-color: #1d2a2b;
+  box-shadow: none;
+}
+.top-actions .icon-btn:hover { transform:none; }
+.top-actions .account { font-size:12px; color:#a8b5b4; }
+.top-actions #quickActionsBtn,
+.top-actions #globalSearchBtn,
+.top-actions #syncBtn,
+.top-actions #notificationsBtn {
+  display:none;
+}
+.top-actions #themeToggle { display:inline-flex; }
+
+/* Desktop explorer: tighter and closer to a file manager. */
+.cloud-explorer {
+  grid-template-columns: 220px minmax(0,1fr);
+  background:#081012;
+}
+.drive-sidebar {
+  background:#091315;
+  border-right:1px solid #1d2d2e;
+}
+.drive-side-head { padding:11px 10px 8px; }
+.drive-caption { font-size:10px; }
+.drive-search-wrap {
+  height:34px;
+  margin:0 8px 9px;
+  border-radius:3px;
+}
+.drive-side-section { padding:0 5px; }
+.drive-side-label { padding:7px 7px 5px; }
+.drive-repo-item {
+  padding:8px 8px;
+  border-radius:2px;
+}
+.drive-repo-item .r-title { font-size:12px; }
+.drive-repo-item .r-meta { font-size:9px; }
+
+.drive-main { background:#081012; }
+.drive-toolbar {
+  min-height:44px;
+  padding:5px 8px;
+  background:#091315;
+  border-bottom:1px solid #1d2d2e;
+}
+.drive-menu { display:none; }
+.drive-location {
+  padding:9px 11px;
+  background:#0a1517;
+}
+.drive-location-title { font-size:15px; }
+.drive-file-toolbar {
+  padding:8px 9px 6px;
+  background:#081012;
+}
+.drive-file-actions input,
+.drive-file-actions select {
+  height:31px;
+  border-radius:3px;
+}
+.drive-file-grid {
+  grid-template-columns:repeat(auto-fill,minmax(145px,1fr));
+  gap:4px;
+  padding:0 8px 8px;
+}
+.drive-item {
+  padding:8px;
+  border-radius:3px;
+  background:#0b1516;
+  border-color:#1c2b2c;
+}
+.drive-item:hover { transform:none; }
+.drive-file-icon {
+  width:30px;
+  height:30px;
+  flex-basis:30px;
+  font-size:18px;
+}
+.drive-item-name { font-size:11px; }
+.drive-item-meta { margin-top:6px; font-size:9px; }
+
+/* Critical fix: global input rules were making the checkbox a giant
+   invisible selection layer over the whole card. */
+.drive-item .drive-item-check,
+.drive-item-check {
+  position:absolute !important;
+  top:7px !important;
+  right:7px !important;
+  width:16px !important;
+  height:16px !important;
+  min-width:16px !important;
+  min-height:16px !important;
+  max-width:16px !important;
+  max-height:16px !important;
+  margin:0 !important;
+  padding:0 !important;
+  border:0 !important;
+  box-shadow:none !important;
+  accent-color:#38b9ad;
+  cursor:pointer;
+  z-index:3;
+}
+
+/* Don't let the checkbox steal the whole file-card click target. */
+.drive-item { padding-right:30px; }
+
+/* Preview actions are always reachable on touch; on desktop they stay
+   subtle until hover. */
+.drive-item-actions {
+  display:flex;
+  opacity:0;
+  pointer-events:none;
+}
+.drive-item:hover .drive-item-actions,
+.drive-item:focus-within .drive-item-actions {
+  opacity:1;
+  pointer-events:auto;
+}
+.drive-item-actions button {
+  width:24px;
+  height:24px;
+  padding:0;
+  border-radius:3px;
+}
+
+/* Preview window: compact, real file-manager dialog. */
+#previewModal {
+  width:min(900px, calc(100vw - 20px));
+  max-width:calc(100vw - 20px);
+  max-height:calc(100vh - 20px);
+  margin:auto;
+  border:1px solid #243536;
+  border-radius:5px;
+  background:#091012;
+  box-shadow:0 18px 55px rgba(0,0,0,.55);
+}
+#previewModal .dialog {
+  width:100%;
+  max-width:none;
+  max-height:calc(100vh - 20px);
+  padding:10px;
+  background:#091012 !important;
+  border-radius:5px;
+  overflow:hidden auto;
+}
+#previewModal .dialog-header {
+  margin-bottom:8px;
+  min-width:0;
+}
+#previewModal .dialog-header h3 {
+  min-width:0;
+  max-width:calc(100% - 180px);
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:14px;
+}
+#previewContent {
+  min-height:100px;
+  max-height:calc(100vh - 150px);
+  padding:6px;
+  background:#050b0c;
+  border:1px solid #1b2a2b;
+  border-radius:3px;
+}
+#previewContent img,
+#previewContent video {
+  max-width:100%;
+  max-height:calc(100vh - 190px);
+  border-radius:2px;
+}
+#previewContent iframe {
+  height:calc(100vh - 190px);
+  border-radius:2px;
+}
+#previewContent pre.preview-text {
+  width:100%;
+  margin:0;
+  padding:12px;
+  box-sizing:border-box;
+  overflow:auto;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  text-align:left;
+  font:12px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace;
+  color:#d5dfde;
+}
+#previewModal .dialog-actions {
+  margin-top:8px;
+}
+#previewModal .dialog-actions .primary-btn {
+  min-height:32px;
+  padding:4px 12px;
+}
+
+/* Mobile: no giant repo panel above the files. Use a real drawer. */
+@media (max-width:800px) {
+  .shell:has(#appView:not(.hidden)) { padding:0; }
+  .topbar {
+    height:50px;
+    padding:0 8px;
+  }
+  .brand-logo { width:72px; height:28px; }
+  .top-actions #themeToggle { display:none; }
+  .top-actions #logoutBtn {
+    display:inline-flex !important;
+    font-size:11px;
+    padding:3px 5px;
+  }
+
+  #appView:not(.hidden) .cloud-explorer {
+    min-height:calc(100vh - 50px);
+    display:block;
+    position:relative;
+    overflow:hidden;
+  }
+
+  .drive-sidebar {
+    position:absolute;
+    inset:0 auto 0 0;
+    width:min(278px,86vw);
+    max-height:none;
+    height:100%;
+    z-index:20;
+    transform:translateX(-102%);
+    transition:transform .18s ease;
+    box-shadow:12px 0 28px rgba(0,0,0,.45);
+    border-right:1px solid #294142;
+    border-bottom:0;
+  }
+  body.drive-menu-open .drive-sidebar { transform:translateX(0); }
+  .drive-side-footer { display:flex; }
+
+  .drive-main {
+    width:100%;
+    min-height:calc(100vh - 50px);
+  }
+  .drive-toolbar {
+    min-height:43px;
+    padding:4px 5px;
+  }
+  .drive-menu {
+    display:inline-grid;
+    flex:0 0 32px;
+    width:32px;
+    min-width:32px;
+    height:32px;
+    border-radius:3px;
+  }
+  .drive-breadcrumbs { flex:1; }
+  .drive-toolbar-actions {
+    gap:3px;
+  }
+  .drive-toolbar-actions .drive-icon {
+    width:30px;
+    min-width:30px;
+    height:30px;
+  }
+  .drive-toolbar-actions #driveBack,
+  .drive-toolbar-actions #driveUp,
+  .drive-toolbar-actions #driveMore {
+    display:none;
+  }
+  .drive-toolbar-actions .drive-primary {
+    min-height:30px;
+    padding:0 8px;
+    font-size:11px;
+  }
+
+  .drive-location {
+    padding:8px 9px;
+  }
+  .drive-location-title { font-size:14px; }
+  .drive-location-meta { font-size:9px; }
+
+  .drive-file-toolbar {
+    display:grid;
+    grid-template-columns:1fr;
+    gap:5px;
+    padding:7px 7px 6px;
+  }
+  .drive-folder-title { min-height:20px; }
+  .drive-file-actions {
+    display:grid;
+    grid-template-columns:minmax(0,1fr) auto;
+    width:100%;
+    gap:4px;
+  }
+  .drive-file-actions input {
+    width:auto;
+    height:32px;
+  }
+  .drive-file-actions select { display:none; }
+  .drive-file-actions .drive-btn {
+    height:32px;
+    min-height:32px;
+    padding:0 8px;
+    font-size:10px;
+  }
+
+  .drive-file-grid {
+    grid-template-columns:repeat(2,minmax(0,1fr));
+    gap:4px;
+    padding:0 6px 7px;
+  }
+  .drive-item {
+    padding:8px 28px 8px 8px;
+    min-height:66px;
+  }
+  .drive-file-icon {
+    width:28px;
+    height:28px;
+    flex-basis:28px;
+    font-size:17px;
+  }
+  .drive-item-name {
+    font-size:11px;
+    line-height:1.2;
+  }
+  .drive-item-meta {
+    margin-top:5px;
+    font-size:9px;
+  }
+  .drive-item-actions { display:none !important; }
+
+  .drive-statusbar {
+    padding:6px 8px;
+    font-size:8px;
+  }
+
+  #previewModal {
+    width:calc(100vw - 10px);
+    max-width:calc(100vw - 10px);
+    max-height:calc(100vh - 10px);
+    border-radius:4px;
+  }
+  #previewModal .dialog {
+    padding:7px;
+    max-height:calc(100vh - 10px);
+  }
+  #previewModal .dialog-header h3 {
+    max-width:calc(100% - 150px);
+    font-size:12px;
+  }
+  #previewContent {
+    max-height:calc(100vh - 110px);
+    min-height:90px;
+  }
+  #previewContent img,
+  #previewContent video {
+    max-height:calc(100vh - 145px);
+  }
+  #previewContent iframe {
+    height:calc(100vh - 145px);
+  }
+  #previewModal .dialog-actions { display:none; }
+}
+
+@media (max-width:430px) {
+  .brand-logo { width:68px; }
+  .drive-file-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+  .drive-item { min-height:62px; }
+}

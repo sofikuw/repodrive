@@ -154,6 +154,7 @@
     driveNewRepo: $('driveNewRepo'),
     driveSignOut: $('driveSignOut'),
     driveBreadcrumbs: $('driveBreadcrumbs'),
+    driveMenu: $('driveMenu'),
     driveBack: $('driveBack'),
     driveUp: $('driveUp'),
     driveRefresh: $('driveRefresh'),
@@ -986,7 +987,7 @@
 
   async function previewFile(path) {
     if (!selected) return;
-    const branch = els.branchSelect.value;
+    const branch = els.branchSelect?.value || selected.default_branch || 'main';
     currentPreviewFile = path;
     currentPreviewData = null;
     revokePreviewUrl();
@@ -995,7 +996,8 @@
     els.previewModal.showModal();
 
     try {
-      const data = await api(`/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/contents/${encodeURIComponent(path)}?ref=${encodeURIComponent(branch)}`);
+      const apiPath = String(path).split('/').map(encodeURIComponent).join('/');
+      const data = await api(`/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/contents/${apiPath}?ref=${encodeURIComponent(branch)}`);
       currentPreviewData = data;
       const ext = getFileExtension(path);
       const mime = previewMime(path);
@@ -1401,7 +1403,7 @@ jobs:
       b.type = 'button';
       b.className = `drive-repo-item${selected?.id === r.id ? ' active' : ''}`;
       b.innerHTML = `<div class="r-title"><span class="r-lock">${r.private ? '🔒' : '○'}</span><span>${escapeHtml(r.name)}</span></div><div class="r-meta">${fmt(r.sizeKB * 1024)} · ${escapeHtml(r.default_branch)}</div>`;
-      b.addEventListener('click', () => selectRepo(r));
+      b.addEventListener('click', () => { selectRepo(r); document.body.classList.remove('drive-menu-open'); els.driveMenu?.setAttribute('aria-expanded','false'); });
       els.driveRepoList.appendChild(b);
     }
   }
@@ -1456,8 +1458,11 @@ jobs:
       const item = document.createElement('article');
       item.className = 'drive-item folder';
       item.innerHTML = `<div class="drive-item-head"><div class="drive-file-icon">${driveFileIcon('',true)}</div><div class="drive-item-name">${escapeHtml(folder.name)}</div></div><div class="drive-item-meta"><span>${folder.files} file${folder.files===1?'':'s'}</span><span>${fmt(folder.size)}</span></div>`;
-      item.addEventListener('dblclick', () => { driveHistory.push(drivePath); drivePath=folder.path; renderDriveFiles(); });
-      item.addEventListener('click', e => { if (e.detail === 1) { setTimeout(() => { if (e.detail === 1) { driveHistory.push(drivePath); drivePath=folder.path; renderDriveFiles(); } }, 180); } });
+      item.addEventListener('click', () => {
+        driveHistory.push(drivePath);
+        drivePath = folder.path;
+        renderDriveFiles();
+      });
       els.driveFileGrid.appendChild(item);
     }
     for (const f of files) {
@@ -1853,6 +1858,10 @@ jobs:
   els.webdavMount.addEventListener('click', showWebDAV);
   
   // Cloud explorer controls
+  if (els.driveMenu) els.driveMenu.addEventListener('click', () => {
+    const open = document.body.classList.toggle('drive-menu-open');
+    els.driveMenu.setAttribute('aria-expanded', String(open));
+  });
   if (els.driveRepoSearch) els.driveRepoSearch.addEventListener('input', renderDriveRepos);
   if (els.driveNewRepo) els.driveNewRepo.addEventListener('click', () => els.newRepoBtn.click());
   if (els.driveSignOut) els.driveSignOut.addEventListener('click', () => { clearSession(true); location.reload(); });
