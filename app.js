@@ -1356,17 +1356,39 @@ jobs:
 
   // Render Tree
   // Mixplorer-inspired cloud explorer -------------------------------------------------
+  function driveIconSvg(kind) {
+    const common = 'viewBox=\"0 0 24 24\" aria-hidden=\"true\" focusable=\"false\"';
+    const paths = {
+      folder: '<path d=\"M3.5 6.5h6l1.8 2h9.2v9.8a1.7 1.7 0 0 1-1.7 1.7H5.2a1.7 1.7 0 0 1-1.7-1.7z\"/><path d=\"M3.5 6.5v-1A1.5 1.5 0 0 1 5 4h4l1.6 2.1h4.1\"/>',
+      image: '<rect x=\"3.5\" y=\"4\" width=\"17\" height=\"16\" rx=\"2\"/><circle cx=\"8.2\" cy=\"9\" r=\"1.5\"/><path d=\"m5.5 17 4.2-4.2 3 3 2-2 3.8 3.2\"/>',
+      video: '<rect x=\"3.5\" y=\"5\" width=\"17\" height=\"14\" rx=\"2\"/><path d=\"m10 9 5 3-5 3z\"/>',
+      audio: '<path d=\"M9 18V6l10-2v12\"/><circle cx=\"6.5\" cy=\"18\" r=\"2.5\"/><circle cx=\"16.5\" cy=\"16\" r=\"2.5\"/>',
+      archive: '<path d=\"M4 5.5h16v4H4zM5 9.5h14v9a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 18.5z\"/><path d=\"M10 12h4M10 15h4\"/>',
+      pdf: '<path d=\"M6 3.5h8l4 4v13H6z\"/><path d=\"M14 3.5v4h4M8.5 15.5h7M8.5 12.5h4\"/>',
+      code: '<path d=\"m8 7-4 5 4 5M16 7l4 5-4 5M14 4l-4 16\"/>',
+      text: '<path d=\"M6 3.5h8l4 4v13H6z\"/><path d=\"M14 3.5v4h4M9 12h6M9 15h6M9 18h4\"/>',
+      file: '<path d=\"M6 3.5h8l4 4v13H6z\"/><path d=\"M14 3.5v4h4\"/>'
+    };
+    return `<svg class=\"mix-file-svg\" ${common}>${paths[kind] || paths.file}</svg>`;
+  }
+
   function driveFileIcon(path, isFolder = false) {
-    if (isFolder) return '▰';
+    if (isFolder) return driveIconSvg('folder');
     const ext = (path.split('.').pop() || '').toLowerCase();
-    if (['jpg','jpeg','png','gif','webp','svg','bmp','heic','avif'].includes(ext)) return '▧';
-    if (['mp4','mkv','mov','webm','avi','m4v'].includes(ext)) return '▶';
-    if (['mp3','wav','flac','m4a','ogg','aac'].includes(ext)) return '♫';
-    if (['zip','rar','7z','tar','gz','bz2','xz'].includes(ext)) return '▣';
-    if (['pdf'].includes(ext)) return 'P';
-    if (['js','jsx','ts','tsx','py','java','c','cpp','h','css','html','json','xml','yml','yaml','sh'].includes(ext)) return '</>';
-    if (['doc','docx','txt','md','rtf'].includes(ext)) return 'T';
-    return '□';
+    if (['jpg','jpeg','png','gif','webp','svg','bmp','heic','avif','tiff','ico'].includes(ext)) return driveIconSvg('image');
+    if (['mp4','mkv','mov','webm','avi','m4v','wmv','flv','3gp'].includes(ext)) return driveIconSvg('video');
+    if (['mp3','wav','flac','m4a','ogg','aac','wma','alac'].includes(ext)) return driveIconSvg('audio');
+    if (['zip','rar','7z','tar','gz','bz2','xz'].includes(ext)) return driveIconSvg('archive');
+    if (ext === 'pdf') return driveIconSvg('pdf');
+    if (['js','jsx','ts','tsx','py','java','c','cpp','h','css','html','json','xml','yml','yaml','sh','bash','sql'].includes(ext)) return driveIconSvg('code');
+    if (['doc','docx','txt','md','rtf','csv','log'].includes(ext)) return driveIconSvg('text');
+    return driveIconSvg('file');
+  }
+
+  function driveRepoIcon(privateRepo = false) {
+    return privateRepo
+      ? '<svg class=\"mix-repo-svg lock\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"5\" y=\"10\" width=\"14\" height=\"10\" rx=\"2\"/><path d=\"M8 10V7a4 4 0 0 1 8 0v3\"/></svg>'
+      : '<svg class=\"mix-repo-svg\" viewBox=\"0 0 24 24\" aria-hidden=\"true\"><circle cx=\"12\" cy=\"12\" r=\"7.5\"/></svg>';
   }
 
   function driveFolderData() {
@@ -1402,7 +1424,7 @@ jobs:
       const b = document.createElement('button');
       b.type = 'button';
       b.className = `drive-repo-item${selected?.id === r.id ? ' active' : ''}`;
-      b.innerHTML = `<div class="r-title"><span class="r-lock">${r.private ? '🔒' : '○'}</span><span>${escapeHtml(r.name)}</span></div><div class="r-meta">${fmt(r.sizeKB * 1024)} · ${escapeHtml(r.default_branch)}</div>`;
+      b.innerHTML = `<div class="r-title"><span class="r-lock">${driveRepoIcon(r.private)}</span><span>${escapeHtml(r.name)}</span></div><div class="r-meta">${fmt(r.sizeKB * 1024)} · ${escapeHtml(r.default_branch)}</div>`;
       b.addEventListener('click', () => { selectRepo(r); document.body.classList.remove('drive-menu-open'); els.driveMenu?.setAttribute('aria-expanded','false'); });
       els.driveRepoList.appendChild(b);
     }

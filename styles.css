@@ -2257,3 +2257,513 @@ input, select, textarea {
   .drive-file-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .drive-item { min-height:62px; }
 }
+
+
+/* =========================================================
+   RepoDrive MiX cloud mode
+   Frontend-only presentation layer: the existing GitHub/API
+   behavior remains intact while the old dashboard/picker chrome
+   is removed from the visible experience.
+   ========================================================= */
+
+/* Keep the cloud explorer as the only primary post-login surface. */
+.appbar,
+.stats-grid,
+#accessPanel,
+#globalSearchBar,
+#quickActionsMenu,
+.repo-section,
+.repodrive-legacy-ui {
+  display: none !important;
+}
+
+.topbar {
+  height: 56px;
+  padding: 0 14px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  border-bottom: 1px solid var(--mix-line);
+  background: #0d1415;
+  box-shadow: none;
+}
+
+.brand { gap: 8px; font-size: 18px; }
+.brand-logo { width: 86px; height: 30px; }
+.brand .version { display: none; }
+.top-actions { gap: 4px; }
+.top-actions .icon-btn,
+.top-actions .account,
+.top-actions #logoutBtn { display: none; }
+.top-actions #refreshBtn,
+.top-actions #themeToggle { display: inline-flex; }
+.top-actions #refreshBtn { order: 1; }
+.top-actions #themeToggle { order: 2; }
+.top-actions #themeToggle { width: 34px; height: 34px; min-height: 34px; border-radius: 4px; }
+
+.shell {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+}
+
+.dashboard-header {
+  margin: 0;
+}
+
+.cloud-explorer {
+  width: 100%;
+  min-height: calc(100vh - 56px);
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--mix-bg);
+}
+
+.drive-sidebar {
+  background: #0d1415;
+}
+
+.drive-side-head {
+  min-height: 54px;
+  padding: 10px 12px;
+}
+
+.drive-caption {
+  font-weight: 700;
+  letter-spacing: .16em;
+}
+
+.drive-search-wrap {
+  border-radius: 3px;
+  background: #0a1112;
+}
+
+.drive-main {
+  min-height: calc(100vh - 56px);
+  background: #0a1011;
+}
+
+.drive-toolbar {
+  min-height: 50px;
+  background: #0d1415;
+}
+
+.drive-location {
+  background: #0f1718;
+}
+
+.drive-location-title {
+  font-size: 17px;
+}
+
+.drive-file-toolbar {
+  background: #0b1213;
+}
+
+.drive-file-grid {
+  min-height: 220px;
+  align-content: start;
+}
+
+.drive-item {
+  transition: border-color .16s ease, background .16s ease, transform .16s ease;
+}
+
+.drive-item:hover {
+  transform: translateY(-1px);
+}
+
+/* Make the sidebar behave like MiX's mobile drawer instead of stacking above files. */
+@media (max-width: 800px) {
+  .topbar { height: 54px; }
+  .cloud-explorer { min-height: calc(100vh - 54px); position: relative; }
+  .drive-main { min-height: calc(100vh - 54px); }
+  .drive-sidebar {
+    position: fixed;
+    left: 0;
+    top: 54px;
+    bottom: 0;
+    width: min(82vw, 310px);
+    max-height: none;
+    z-index: 90;
+    transform: translateX(-105%);
+    transition: transform .2s ease;
+    box-shadow: 14px 0 32px rgba(0,0,0,.38);
+  }
+  body.drive-menu-open .drive-sidebar { transform: translateX(0); }
+  body.drive-menu-open::after {
+    content: '';
+    position: fixed;
+    inset: 54px 0 0;
+    background: rgba(0,0,0,.45);
+    z-index: 80;
+  }
+  .drive-side-section { max-height: none; }
+  .drive-repo-list { display: flex; grid-template-columns: none; }
+  .drive-side-footer { display: flex; }
+  .drive-menu { display: inline-grid; }
+  .drive-toolbar-actions .drive-icon:nth-child(2) { display: none; }
+  .drive-location { padding: 11px 10px; }
+  .drive-location-actions { display: none; }
+}
+
+@media (max-width: 430px) {
+  .brand-logo { width: 78px; }
+  .topbar { padding: 0 10px; }
+  .drive-file-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 801px) {
+  .drive-menu { display: none; }
+}
+
+/* =========================================================
+   MiX visual pass 2 — tighter geometry, native-looking icons,
+   and a true mobile drawer. Presentation-only overrides.
+   ========================================================= */
+:root {
+  --mix-bg: #0a1113;
+  --mix-header: #0b1517;
+  --mix-surface: #0e191b;
+  --mix-surface-2: #121e20;
+  --mix-surface-3: #172426;
+  --mix-border: #26393b;
+  --mix-border-soft: #1c2d2f;
+  --mix-text: #eef4f3;
+  --mix-muted: #8c9b9b;
+  --mix-accent: #4fc4bc;
+  --mix-accent-dim: #245c5a;
+  --mix-accent-bg: rgba(79,196,188,.12);
+}
+
+html, body { background: var(--mix-bg); }
+body { font-family: "Segoe UI", Roboto, -apple-system, BlinkMacSystemFont, sans-serif; }
+
+/* Header: compact like the MiX main bar rather than a web-dashboard navbar. */
+.topbar {
+  height: 54px;
+  min-height: 54px;
+  padding: 0 14px;
+  background: var(--mix-header);
+  border-bottom: 1px solid var(--mix-border);
+}
+.brand { min-width: 0; }
+.brand-logo { width: 92px; height: 32px; object-fit: contain; object-position: left center; }
+.top-actions { margin-left: auto; }
+.top-actions #refreshBtn,
+.top-actions #themeToggle {
+  width: 36px;
+  height: 36px;
+  min-height: 36px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--mix-muted);
+  border-radius: 5px;
+}
+.top-actions #refreshBtn:hover,
+.top-actions #themeToggle:hover { background: var(--mix-surface-2); color: var(--mix-text); border-color: var(--mix-border); }
+
+/* Explorer is edge-to-edge, with the exact compact rhythm used by MiX. */
+.cloud-explorer {
+  min-height: calc(100vh - 54px);
+  grid-template-columns: 258px minmax(0,1fr);
+  border: 0;
+  border-radius: 0;
+  background: var(--mix-bg);
+}
+.drive-sidebar {
+  background: var(--mix-surface);
+  border-right: 1px solid var(--mix-border);
+}
+.drive-side-head {
+  height: 52px;
+  min-height: 52px;
+  padding: 0 12px;
+  border-bottom: 1px solid var(--mix-border-soft);
+}
+.drive-caption {
+  font-size: 11px;
+  letter-spacing: .15em;
+  color: #a6b2b2;
+}
+.drive-side-head .drive-icon {
+  width: 34px;
+  height: 34px;
+  min-height: 34px;
+  color: var(--mix-accent);
+  border-color: var(--mix-border);
+  background: var(--mix-surface-2);
+}
+.drive-search-wrap {
+  height: 38px;
+  margin: 10px 10px 8px;
+  border-radius: 5px;
+  background: #091214;
+  border-color: var(--mix-border);
+}
+.drive-search-wrap:focus-within { border-color: var(--mix-accent-dim); box-shadow: 0 0 0 2px rgba(79,196,188,.08); }
+.drive-search-wrap input { font-size: 12px; }
+.drive-side-section { padding: 0 6px; }
+.drive-side-label { padding: 9px 8px 6px; font-size: 9px; letter-spacing: .16em; }
+.drive-side-label span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 20px;
+  height: 18px;
+  padding: 0 5px;
+  border: 1px solid var(--mix-border);
+  border-radius: 9px;
+  font-size: 9px;
+  letter-spacing: 0;
+}
+.drive-repo-list { gap: 1px; }
+.drive-repo-item {
+  min-height: 50px;
+  padding: 8px 9px 8px 10px;
+  border-left: 2px solid transparent;
+  border-radius: 5px;
+}
+.drive-repo-item:hover { background: var(--mix-surface-2); }
+.drive-repo-item.active {
+  background: var(--mix-accent-bg);
+  border-left-color: var(--mix-accent);
+}
+.drive-repo-item .r-title { gap: 9px; font-size: 12px; }
+.drive-repo-item .r-meta { padding-left: 25px; font-size: 9px; color: #718181; }
+.r-lock { display: grid; place-items: center; width: 16px; height: 16px; flex: 0 0 16px; }
+.mix-repo-svg { width: 15px; height: 15px; fill: none; stroke: #718383; stroke-width: 1.7; }
+.mix-repo-svg.lock { stroke: var(--mix-accent); }
+.drive-side-footer { padding: 10px; border-top-color: var(--mix-border); background: #0c1618; }
+.drive-user { padding: 2px 1px; }
+.drive-avatar { width: 30px; height: 30px; border-radius: 5px; background: var(--mix-accent-dim); color: var(--mix-text); }
+.drive-footer-btn { min-height: 34px; background: var(--mix-surface-2); border-color: var(--mix-border); }
+
+/* Main toolbar + breadcrumb strip. */
+.drive-main { background: var(--mix-bg); }
+.drive-toolbar {
+  min-height: 50px;
+  height: 50px;
+  padding: 7px 10px;
+  background: var(--mix-header);
+  border-bottom: 1px solid var(--mix-border);
+}
+.drive-toolbar-actions { gap: 3px; }
+.drive-icon, .drive-btn, .drive-primary {
+  min-height: 34px;
+  height: 34px;
+  border-radius: 5px;
+  border-color: var(--mix-border);
+  background: var(--mix-surface-2);
+  color: var(--mix-soft);
+  font-size: 13px;
+}
+.drive-icon { width: 34px; padding: 0; }
+.drive-icon:hover, .drive-btn:hover { background: var(--mix-surface-3); border-color: #385557; color: var(--mix-text); }
+.drive-primary {
+  padding: 0 13px;
+  background: var(--mix-accent-dim);
+  border-color: #367a76;
+  color: #eaf8f7;
+}
+.drive-primary:hover { background: #2c6e6b; }
+.mix-menu-glyph,
+.mix-menu-glyph::before,
+.mix-menu-glyph::after {
+  display: block;
+  width: 16px;
+  height: 1.5px;
+  border-radius: 2px;
+  background: currentColor;
+  content: "";
+}
+.mix-menu-glyph { position: relative; }
+.mix-menu-glyph::before { position: absolute; left: 0; top: -5px; }
+.mix-menu-glyph::after { position: absolute; left: 0; top: 5px; }
+.drive-breadcrumbs { gap: 4px; padding: 0 3px; }
+.drive-crumb {
+  padding: 6px 7px;
+  border-radius: 4px;
+  color: #91a2a2;
+  font-size: 12px;
+}
+.drive-crumb:hover { background: var(--mix-surface-2); color: var(--mix-text); }
+.drive-crumb.current { color: var(--mix-text); }
+.drive-crumb-sep { color: #506061; font-size: 14px; }
+
+.drive-location {
+  min-height: 70px;
+  padding: 12px 14px;
+  background: #0c1719;
+  border-bottom: 1px solid var(--mix-border-soft);
+}
+.drive-location-title { font-size: 16px; letter-spacing: -.01em; }
+.drive-location-meta { margin-top: 4px; font-size: 9px; letter-spacing: .08em; }
+.drive-location-actions { gap: 4px; }
+.drive-location-actions .drive-btn { font-size: 11px; }
+
+.drive-file-toolbar {
+  min-height: 50px;
+  padding: 8px 12px;
+  background: var(--mix-bg);
+  border-bottom: 1px solid var(--mix-border-soft);
+}
+.drive-folder-title { gap: 8px; }
+.drive-folder-title > span:first-child { color: var(--mix-accent); font-size: 14px; }
+.drive-folder-title b { font-size: 12px; }
+.drive-folder-title span:last-child { font-size: 9px; color: #728181; }
+.drive-file-actions { gap: 4px; }
+.drive-file-actions input,
+.drive-file-actions select {
+  height: 32px;
+  min-height: 32px;
+  border-radius: 5px;
+  border-color: var(--mix-border);
+  background: #0c1719;
+  font-size: 11px;
+}
+.drive-file-actions input { width: 190px; }
+.drive-file-actions select { width: 92px; }
+.drive-file-actions .drive-btn { height: 32px; min-height: 32px; padding: 0 9px; font-size: 10px; }
+
+/* File cards: compact, tactile, icon-forward, and much closer to MiX's tile rhythm. */
+.drive-file-grid {
+  padding: 10px 12px 14px;
+  grid-template-columns: repeat(4, minmax(150px, 1fr));
+  gap: 6px;
+  background: var(--mix-bg);
+  scrollbar-width: thin;
+  scrollbar-color: #304546 transparent;
+}
+.drive-item {
+  min-height: 84px;
+  padding: 9px 10px;
+  border: 1px solid var(--mix-border-soft);
+  border-radius: 5px;
+  background: #0d181a;
+  box-shadow: none;
+}
+.drive-item:hover {
+  transform: none;
+  background: #111e20;
+  border-color: #355153;
+}
+.drive-item.selected { background: rgba(79,196,188,.10); border-color: #4c8581; }
+.drive-item.folder { background: #0e1a1b; }
+.drive-item.folder:hover { background: #122123; }
+.drive-item-head { align-items: center; gap: 9px; }
+.drive-file-icon {
+  width: 40px;
+  height: 40px;
+  flex: 0 0 40px;
+  border-radius: 5px;
+  border: 1px solid #294043;
+  background: #142123;
+  color: var(--mix-accent);
+  font-size: 20px;
+}
+.drive-item.folder .drive-file-icon {
+  background: rgba(79,196,188,.09);
+  border-color: #315958;
+  color: var(--mix-accent);
+}
+.mix-file-svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.55; stroke-linecap: round; stroke-linejoin: round; }
+.drive-item-name { font-size: 11px; line-height: 1.3; font-weight: 600; color: #e6eded; }
+.drive-item-meta { margin-top: 8px; padding-top: 7px; border-top: 1px solid #17292b; font-size: 8.5px; color: #748484; }
+.drive-item-check { top: 7px; right: 7px; accent-color: var(--mix-accent); }
+.drive-item-actions { gap: 2px; }
+.drive-item-actions button { width: 26px; height: 26px; border-radius: 4px; }
+.drive-empty { margin: 36px auto; }
+.drive-empty-icon { width: 52px; height: 52px; border-radius: 5px; background: #111e20; border-color: var(--mix-border); color: var(--mix-accent); }
+.drive-statusbar { min-height: 28px; padding: 6px 12px; background: var(--mix-header); border-top-color: var(--mix-border); font-size: 8px; letter-spacing: .08em; }
+
+/* List mode keeps the same visual language but becomes a dense file-server list. */
+.drive-file-grid.list-mode { gap: 2px; }
+.drive-file-grid.list-mode .drive-item {
+  min-height: 44px;
+  padding: 5px 8px;
+  grid-template-columns: 30px minmax(0,1fr) 100px 100px;
+  border-radius: 4px;
+}
+.drive-file-grid.list-mode .drive-file-icon { width: 28px; height: 28px; flex-basis: 28px; }
+.drive-file-grid.list-mode .mix-file-svg { width: 17px; height: 17px; }
+.drive-file-grid.list-mode .drive-item-meta { border-top: 0; padding-top: 0; margin-top: 0; }
+
+/* Desktop drawer/sidebar separation and a more native mobile drawer. */
+@media (max-width: 1050px) {
+  .drive-file-grid { grid-template-columns: repeat(3, minmax(140px,1fr)); }
+}
+
+@media (max-width: 800px) {
+  .topbar { height: 52px; min-height: 52px; padding: 0 9px; }
+  .brand-logo { width: 78px; height: 29px; }
+  .cloud-explorer, .drive-main { min-height: calc(100vh - 52px); }
+  .drive-sidebar {
+    top: 52px;
+    width: min(310px, calc(100vw - 38px));
+    background: #0b1517;
+    border-right: 1px solid #355052;
+    box-shadow: 18px 0 42px rgba(0,0,0,.5);
+    transform: translateX(-105%);
+  }
+  body.drive-menu-open .drive-sidebar { transform: translateX(0); }
+  body.drive-menu-open::after {
+    inset: 52px 0 0;
+    background: rgba(0,0,0,.54);
+    backdrop-filter: blur(2px);
+    z-index: 80;
+  }
+  .drive-side-head { height: 54px; min-height: 54px; }
+  .drive-side-footer { display: flex; }
+  .drive-toolbar { height: 48px; min-height: 48px; padding: 6px 7px; }
+  .drive-menu { display: inline-grid; }
+  .drive-toolbar-actions .drive-icon:nth-child(2) { display: none; }
+  .drive-location { min-height: 62px; padding: 10px 9px; }
+  .drive-location-title { font-size: 15px; }
+  .drive-file-toolbar { min-height: auto; padding: 7px 8px; gap: 7px; }
+  .drive-file-actions { width: 100%; }
+  .drive-file-actions input { flex: 1; width: auto; }
+  .drive-file-actions select { width: 78px; }
+  .drive-file-actions .drive-btn { display: none; }
+  .drive-file-grid { grid-template-columns: repeat(2, minmax(0,1fr)); padding: 7px 7px 12px; gap: 4px; }
+  .drive-item { min-height: 74px; padding: 8px; }
+  .drive-file-icon { width: 36px; height: 36px; flex-basis: 36px; }
+  .drive-item-name { font-size: 10.5px; }
+  .drive-item-meta { font-size: 8px; }
+  .drive-item-actions { display: none !important; }
+}
+
+@media (max-width: 420px) {
+  .brand-logo { width: 72px; }
+  .top-actions #refreshBtn, .top-actions #themeToggle { width: 32px; height: 32px; min-height: 32px; }
+  .drive-toolbar-actions .drive-primary { padding: 0 9px; font-size: 11px; }
+  .drive-file-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .drive-item { min-height: 70px; padding: 7px; }
+  .drive-file-icon { width: 34px; height: 34px; flex-basis: 34px; }
+  .mix-file-svg { width: 19px; height: 19px; }
+}
+
+@media (min-width: 801px) { .drive-menu { display: none; } }
+
+/* Light mode follows the same MiX geometry while using the source project's palette. */
+html[data-theme="light"] body { background: #f7f8fa; color: #343436; }
+html[data-theme="light"] .topbar { background: #edeff5; border-color: #d9dce3; }
+html[data-theme="light"] .cloud-explorer { background: #f9fafd; }
+html[data-theme="light"] .drive-sidebar,
+html[data-theme="light"] .drive-toolbar,
+html[data-theme="light"] .drive-statusbar { background: #edeff5; border-color: #d9dce3; }
+html[data-theme="light"] .drive-main,
+html[data-theme="light"] .drive-file-grid { background: #f9fafd; }
+html[data-theme="light"] .drive-location { background: #f2f4f7; border-color: #d9dce3; }
+html[data-theme="light"] .drive-item,
+html[data-theme="light"] .drive-search-wrap,
+html[data-theme="light"] .drive-file-actions input,
+html[data-theme="light"] .drive-file-actions select { background: #f2f4f7; border-color: #d9dce3; color: #343436; }
+html[data-theme="light"] .drive-item:hover { background: #e9ecf1; }
+html[data-theme="light"] .drive-item-meta { border-color: #e0e3e8; color: #73777d; }
+html[data-theme="light"] .drive-repo-item:hover { background: #e7eaf0; }
+html[data-theme="light"] .drive-repo-item.active { background: rgba(134,140,255,.12); border-left-color: #868cff; }
+html[data-theme="light"] .drive-file-icon { background: #e8ebf0; border-color: #d5d9e0; color: #6f78d7; }
+html[data-theme="light"] .drive-item-name { color: #343436; }

@@ -30,8 +30,8 @@
       <!-- Quick Actions -->
       <button id="quickActionsBtn" class="icon-btn" title="Quick actions">⚡</button>
       <button id="globalSearchBtn" class="icon-btn" title="Global search">🔍</button>
-      <button id="syncBtn" class="icon-btn" title="Sync">🔄</button>
-      <button id="refreshBtn" class="icon-btn hidden" title="Refresh repositories">⟳</button>
+      <button id="syncBtn" class="icon-btn hidden" title="Sync">🔄</button>
+      <button id="refreshBtn" class="icon-btn" title="Refresh repositories">⟳</button>
       <button id="notificationsBtn" class="icon-btn" title="Notifications">🔔</button>
       <button id="themeToggle" class="icon-btn" title="Toggle theme">🌙</button>
       <span id="account" class="account"></span>
@@ -174,14 +174,14 @@
 
             <section class="drive-main">
               <div class="drive-toolbar">
-                <button id="driveMenu" class="drive-icon drive-menu" title="Repositories" aria-label="Repositories" aria-expanded="false">☰</button>
+                <button id="driveMenu" class="drive-icon drive-menu" title="Repositories" aria-label="Repositories" aria-expanded="false"><span class="mix-menu-glyph" aria-hidden="true"></span></button>
                 <div class="drive-breadcrumbs" id="driveBreadcrumbs"></div>
                 <div class="drive-toolbar-actions">
-                  <button id="driveBack" class="drive-icon" title="Back">‹</button>
-                  <button id="driveUp" class="drive-icon" title="Parent folder">↑</button>
-                  <button id="driveRefresh" class="drive-icon" title="Refresh">⟳</button>
-                  <button id="driveView" class="drive-icon" title="Toggle view">☷</button>
-                  <button id="driveUpload" class="drive-primary">＋ Upload</button>
+                  <button id="driveBack" class="drive-icon" title="Back" aria-label="Back">‹</button>
+                  <button id="driveUp" class="drive-icon" title="Parent folder" aria-label="Parent folder">↑</button>
+                  <button id="driveRefresh" class="drive-icon" title="Refresh" aria-label="Refresh">⟳</button>
+                  <button id="driveView" class="drive-icon" title="Toggle view" aria-label="Toggle view">☷</button>
+                  <button id="driveUpload" class="drive-primary"><span class="mix-plus" aria-hidden="true">＋</span> Upload</button>
                   <button id="driveMore" class="drive-icon" title="More actions">⋮</button>
                 </div>
               </div>
@@ -220,8 +220,8 @@
             </section>
           </section>
 
-        <!-- Repository Selection -->
-        <div class="repo-section glass">
+        <!-- Legacy repository picker retained for app compatibility; hidden in the MiX cloud UI. -->
+        <div class="repo-section glass repodrive-legacy-ui">
           <div class="section-head">
             <div>
               <div class="eyebrow">01 · DESTINATION</div>
@@ -247,8 +247,8 @@
           <div id="repoEmpty" class="empty hidden">No repositories found.</div>
         </div>
 
-        <!-- Workspace -->
-        <section id="workspace" class="hidden">
+        <!-- Legacy workspace retained for app compatibility; hidden in the MiX cloud UI. -->
+        <section id="workspace" class="hidden repodrive-legacy-ui">
           <!-- Selected Repo Header -->
           <div class="selected-row glass">
             <div>
