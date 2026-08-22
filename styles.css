@@ -2767,3 +2767,519 @@ html[data-theme="light"] .drive-repo-item:hover { background: #e7eaf0; }
 html[data-theme="light"] .drive-repo-item.active { background: rgba(134,140,255,.12); border-left-color: #868cff; }
 html[data-theme="light"] .drive-file-icon { background: #e8ebf0; border-color: #d5d9e0; color: #6f78d7; }
 html[data-theme="light"] .drive-item-name { color: #343436; }
+
+/* ------------------------------------------------------------------
+   MiX HTTP File Server fidelity pass
+   Based on the public MiXiMaX structure: compact header, small 4px
+   radii, Radio Canada/Cascadia-like typography, directory tiles and
+   full-width file rows. See the upstream redesign README/source.
+   ------------------------------------------------------------------ */
+:root {
+  --mix-body-bg: #071011;
+  --mix-body-fg: #101b1d;
+  --mix-body-text: #e5eceb;
+  --mix-body-text-lite: #899a99;
+  --mix-header-bg: #0d1719;
+  --mix-header-lite: #111d1f;
+  --mix-accent-1: #5cc9c2;
+  --mix-accent-2: #f2c14e;
+  --mix-menu-hover-bg: #1a292b;
+  --mix-menu-hover-text: #ffffff;
+  --mix-line: #243537;
+}
+
+[data-theme="light"] {
+  --mix-body-bg: #f1f4f3;
+  --mix-body-fg: #ffffff;
+  --mix-body-text: #263332;
+  --mix-body-text-lite: #6f7d7c;
+  --mix-header-bg: #ffffff;
+  --mix-header-lite: #e8eeec;
+  --mix-accent-1: #198f89;
+  --mix-accent-2: #b07a00;
+  --mix-menu-hover-bg: #e1e8e6;
+  --mix-menu-hover-text: #111918;
+  --mix-line: #cfd9d7;
+}
+
+#appView:not(.hidden) .cloud-explorer,
+#appView:not(.hidden) .drive-main {
+  background: var(--mix-body-bg);
+}
+
+#appView:not(.hidden) .drive-toolbar,
+#appView:not(.hidden) .drive-location,
+#appView:not(.hidden) .drive-statusbar {
+  border-color: var(--mix-line);
+  background: var(--mix-header-bg);
+}
+
+#appView:not(.hidden) .drive-toolbar {
+  min-height: 48px;
+  padding: 5px 12px;
+}
+
+#appView:not(.hidden) .drive-location {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--mix-line);
+}
+
+#appView:not(.hidden) .drive-location-title,
+#appView:not(.hidden) .drive-folder-title b {
+  font-family: "Cascadia Code", ui-monospace, monospace;
+}
+
+#appView:not(.hidden) .drive-location-title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+#appView:not(.hidden) .drive-location-meta,
+#appView:not(.hidden) .drive-item-meta,
+#appView:not(.hidden) .drive-item-type,
+#appView:not(.hidden) .drive-statusbar {
+  color: var(--mix-body-text-lite);
+}
+
+#appView:not(.hidden) .drive-file-toolbar {
+  padding: 12px 16px 8px;
+  background: var(--mix-body-bg);
+}
+
+#appView:not(.hidden) .drive-folder-title {
+  min-height: 34px;
+  gap: 8px;
+}
+
+#appView:not(.hidden) .drive-folder-title #drivePathIcon {
+  color: var(--mix-accent-1);
+}
+
+#appView:not(.hidden) .drive-file-actions input,
+#appView:not(.hidden) .drive-file-actions select,
+#appView:not(.hidden) .drive-btn,
+#appView:not(.hidden) .drive-icon {
+  border: 1px solid var(--mix-line);
+  background: var(--mix-body-fg);
+  color: var(--mix-body-text);
+  border-radius: 4px;
+}
+
+#appView:not(.hidden) .drive-icon:hover,
+#appView:not(.hidden) .drive-btn:hover,
+#appView:not(.hidden) .drive-repo-item:hover {
+  background: var(--mix-menu-hover-bg);
+}
+
+#appView:not(.hidden) .drive-primary {
+  border-radius: 4px;
+  background: var(--mix-accent-1);
+  color: #071011;
+  font-weight: 700;
+}
+
+#appView:not(.hidden) .drive-file-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-content: flex-start;
+  gap: 12px;
+  padding: 4px 16px 24px;
+  overflow: auto;
+}
+
+#appView:not(.hidden) .drive-file-grid .drive-item.folder {
+  flex: 0 0 calc((100% - 48px) / 5);
+  width: calc((100% - 48px) / 5);
+  min-width: 0;
+  min-height: 74px;
+  padding: 12px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--mix-body-fg);
+  box-shadow: none;
+}
+
+#appView:not(.hidden) .drive-file-grid .drive-item.folder:hover {
+  background: var(--mix-menu-hover-bg);
+  transform: none;
+}
+
+#appView:not(.hidden) .drive-file-grid .drive-item.file-row {
+  flex: 0 0 100%;
+  width: 100%;
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 38px minmax(0, 1fr) 90px 110px 108px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--mix-body-fg);
+  box-shadow: none;
+}
+
+#appView:not(.hidden) .drive-file-grid .drive-item.file-row:hover,
+#appView:not(.hidden) .drive-file-grid .drive-item.selected {
+  background: var(--mix-menu-hover-bg);
+}
+
+#appView:not(.hidden) .drive-item-head {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#appView:not(.hidden) .drive-item-name {
+  color: var(--mix-body-text);
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#appView:not(.hidden) .drive-file-icon {
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--mix-accent-1);
+}
+
+#appView:not(.hidden) .drive-item.folder .drive-file-icon {
+  width: 34px;
+  height: 34px;
+  background: transparent;
+  color: var(--mix-accent-1);
+}
+
+#appView:not(.hidden) .drive-file-icon svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.6;
+}
+
+#appView:not(.hidden) .drive-item-meta,
+#appView:not(.hidden) .drive-item-type {
+  font: 12px/1.2 "Cascadia Code", ui-monospace, monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#appView:not(.hidden) .drive-item.folder .drive-item-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 9px;
+  font-size: 11px;
+}
+
+#appView:not(.hidden) .drive-item.file-row .drive-item-meta {
+  text-align: right;
+}
+
+#appView:not(.hidden) .drive-item-actions {
+  position: static;
+  display: flex;
+  justify-content: flex-end;
+  gap: 3px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+#appView:not(.hidden) .drive-item.file-row:hover .drive-item-actions,
+#appView:not(.hidden) .drive-item.file-row:focus-within .drive-item-actions {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+#appView:not(.hidden) .drive-item-actions button {
+  width: 30px;
+  height: 30px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--mix-body-text-lite);
+}
+
+#appView:not(.hidden) .drive-item-actions button:hover {
+  background: var(--mix-body-fg);
+  color: var(--mix-accent-1);
+}
+
+#appView:not(.hidden) .drive-item-check {
+  position: absolute !important;
+  top: 7px !important;
+  right: 7px !important;
+  opacity: 0;
+  width: 16px !important;
+  height: 16px !important;
+  z-index: 3;
+}
+
+#appView:not(.hidden) .drive-item.file-row:hover .drive-item-check,
+#appView:not(.hidden) .drive-item.file-row:focus-within .drive-item-check,
+#appView:not(.hidden) .drive-item.file-row.selected .drive-item-check {
+  opacity: 1;
+}
+
+#appView:not(.hidden) .drive-statusbar {
+  min-height: 34px;
+  padding: 7px 16px;
+  border-top: 1px solid var(--mix-line);
+  border-bottom: 0;
+  font: 11px/1 "Cascadia Code", ui-monospace, monospace;
+}
+
+/* MiX-style mobile drawer: compact, right-side, backdrop, no permanent
+   repository panel above the file list. */
+@media (max-width: 800px) {
+  #appView:not(.hidden) .drive-sidebar {
+    position: fixed;
+    inset: 0 0 0 auto;
+    width: min(320px, calc(100vw - 28px));
+    height: 100dvh;
+    max-height: none;
+    z-index: 1000;
+    transform: translateX(105%);
+    background: var(--mix-header-bg);
+    border-left: 1px solid var(--mix-line);
+    border-right: 0;
+    box-shadow: -12px 0 28px rgba(0,0,0,.42);
+    transition: transform .18s linear;
+  }
+
+  body.drive-menu-open::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: 999;
+    background: rgba(0,0,0,.48);
+    backdrop-filter: blur(3px);
+  }
+
+  body.drive-menu-open .drive-sidebar { transform: translateX(0); }
+
+  #appView:not(.hidden) .drive-side-head {
+    padding: 18px 18px 12px;
+  }
+
+  #appView:not(.hidden) .drive-repo-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-height: none;
+    overflow: auto;
+  }
+
+  #appView:not(.hidden) .drive-repo-item {
+    padding: 12px 10px;
+    border-radius: 4px;
+  }
+
+  #appView:not(.hidden) .drive-toolbar {
+    min-height: 46px;
+    padding: 4px 7px;
+  }
+
+  #appView:not(.hidden) .drive-breadcrumbs {
+    min-width: 0;
+  }
+
+  #appView:not(.hidden) .drive-toolbar-actions #driveBack,
+  #appView:not(.hidden) .drive-toolbar-actions #driveUp,
+  #appView:not(.hidden) .drive-toolbar-actions #driveMore {
+    display: none;
+  }
+
+  #appView:not(.hidden) .drive-location {
+    padding: 10px 12px;
+  }
+
+  #appView:not(.hidden) .drive-location-title { font-size: 15px; }
+  #appView:not(.hidden) .drive-location-meta { font-size: 10px; }
+
+  #appView:not(.hidden) .drive-file-toolbar {
+    padding: 9px 10px 6px;
+  }
+
+  #appView:not(.hidden) .drive-file-grid {
+    gap: 6px;
+    padding: 4px 10px 16px;
+  }
+
+  #appView:not(.hidden) .drive-file-grid .drive-item.folder {
+    flex: 0 0 calc((100% - 6px) / 2);
+    width: calc((100% - 6px) / 2);
+    min-height: 72px;
+    padding: 10px;
+  }
+
+  #appView:not(.hidden) .drive-file-grid .drive-item.file-row {
+    grid-template-columns: 34px minmax(0,1fr) 72px;
+    gap: 8px;
+    min-height: 50px;
+    padding: 7px 9px;
+  }
+
+  #appView:not(.hidden) .drive-item.file-row .drive-item-type { display: none; }
+  #appView:not(.hidden) .drive-item.file-row .drive-item-actions { display: none; }
+  #appView:not(.hidden) .drive-item-name { font-size: 13px; }
+  #appView:not(.hidden) .drive-item-meta { font-size: 10px; }
+  #appView:not(.hidden) .drive-item.folder .drive-item-meta { font-size: 10px; }
+
+  #appView:not(.hidden) .drive-side-footer {
+    display: flex;
+    margin-top: auto;
+  }
+}
+
+@media (max-width: 550px) {
+  #appView:not(.hidden) .drive-file-grid .drive-item.folder {
+    flex-basis: 100%;
+    width: 100%;
+  }
+}
+
+/* Full-screen MiX-like media/document preview. */
+#previewModal {
+  width: min(1100px, 100vw);
+  max-width: 100vw;
+  height: min(100dvh, 100vh);
+  max-height: 100dvh;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: var(--mix-body-bg);
+  color: var(--mix-body-text);
+  box-shadow: 0 0 50px rgba(0,0,0,.55);
+}
+
+#previewModal::backdrop {
+  background: rgba(0,0,0,.78);
+  backdrop-filter: blur(3px);
+}
+
+#previewModal .dialog {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  padding: 0;
+  border-radius: 0;
+  background: var(--mix-body-bg) !important;
+  box-shadow: none !important;
+  display: flex;
+  flex-direction: column;
+}
+
+#previewModal .dialog-header {
+  flex: 0 0 52px;
+  margin: 0;
+  padding: 0 10px 0 16px;
+  border-bottom: 1px solid var(--mix-line);
+  background: var(--mix-header-bg);
+  display: flex;
+  align-items: center;
+}
+
+#previewModal .dialog-header h3 {
+  font: 14px/1.2 "Cascadia Code", ui-monospace, monospace;
+  color: var(--mix-body-text);
+}
+
+#previewModal .dialog-header .icon-btn {
+  min-height: 34px;
+  width: 34px;
+  border-radius: 4px;
+  background: transparent;
+  border: 0;
+}
+
+#previewContent {
+  flex: 1 1 auto;
+  min-height: 0;
+  max-height: none;
+  padding: 12px;
+  border: 0;
+  border-radius: 0;
+  background: var(--mix-body-bg);
+  overflow: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.preview-loading,
+.preview-info,
+.font-preview {
+  max-width: 720px;
+  width: min(100%, 720px);
+  padding: 28px;
+  text-align: center;
+  color: var(--mix-body-text-lite);
+}
+
+.preview-info strong { color: var(--mix-body-text); font-size: 16px; }
+.preview-info p { margin: 12px auto; line-height: 1.55; max-width: 600px; }
+.preview-big-icon { margin: 0 auto 12px; color: var(--mix-accent-1); }
+.preview-big-icon svg { width: 54px; height: 54px; stroke: currentColor; fill:none; }
+.preview-actions { display:flex; justify-content:center; gap:8px; flex-wrap:wrap; margin-top:16px; }
+.preview-source-label { width:100%; padding:0 0 8px; color:var(--mix-body-text-lite); font:11px/1 "Cascadia Code",ui-monospace,monospace; }
+
+.preview-media { width:100%; height:100%; display:flex; align-items:center; justify-content:center; flex-direction:column; gap:12px; }
+.preview-media img { max-width:100%; max-height:calc(100dvh - 100px); width:auto; height:auto; object-fit:contain; border-radius:4px; }
+.preview-media video { width:min(100%, 1000px); max-height:calc(100dvh - 120px); background:#000; border-radius:4px; }
+.preview-media audio { width:min(100%, 680px); }
+.audio-art { width:90px; height:90px; border-radius:4px; display:grid; place-items:center; background:var(--mix-body-fg); color:var(--mix-accent-1); font-size:42px; }
+.media-note { color:var(--mix-body-text-lite); font-size:11px; text-align:center; }
+
+#previewContent iframe { width:100%; height:100%; min-height:calc(100dvh - 64px); border:0; border-radius:0; background:#fff; }
+
+.preview-text {
+  width:100%;
+  min-height:100%;
+  margin:0;
+  padding:16px;
+  text-align:left;
+  overflow:auto;
+  white-space:pre-wrap;
+  overflow-wrap:anywhere;
+  color:var(--mix-body-text);
+  background:var(--mix-body-fg);
+  border-radius:4px;
+  font:13px/1.65 "Cascadia Code",ui-monospace,SFMono-Regular,Consolas,monospace;
+}
+
+.preview-table-wrap { width:100%; height:100%; overflow:auto; align-self:stretch; }
+.preview-table { border-collapse:collapse; width:max-content; min-width:100%; background:var(--mix-body-fg); font-size:12px; }
+.preview-table th,.preview-table td { border:1px solid var(--mix-line); padding:8px 10px; text-align:left; vertical-align:top; }
+.preview-table th { position:sticky; top:0; background:var(--mix-header-bg); color:var(--mix-body-text); }
+.preview-table td { color:var(--mix-body-text-lite); }
+
+.markdown-render { width:min(100%, 820px); align-self:flex-start; padding:24px; background:var(--mix-body-fg); border-radius:4px; line-height:1.65; }
+.markdown-render h1,.markdown-render h2,.markdown-render h3,.markdown-render h4,.markdown-render h5,.markdown-render h6 { margin:0 0 12px; color:var(--mix-body-text); }
+.markdown-render p { margin:0 0 12px; }
+.markdown-render code { padding:2px 4px; border-radius:3px; background:var(--mix-body-bg); }
+.markdown-render blockquote { margin:10px 0; padding:8px 12px; border-left:3px solid var(--mix-accent-1); color:var(--mix-body-text-lite); }
+.markdown-render li { margin-left:20px; }
+
+.font-preview { background:var(--mix-body-fg); border-radius:4px; color:var(--mix-body-text); }
+.font-sample { margin:18px 0; font-size:64px; }
+.font-sample.small { font-size:24px; }
+
+@media (max-width:550px) {
+  #previewModal .dialog-header { flex-basis:48px; padding-left:10px; }
+  #previewContent { padding:8px; }
+  .preview-text { padding:12px; font-size:12px; }
+  .markdown-render { padding:16px; }
+  .font-sample { font-size:42px; }
+}

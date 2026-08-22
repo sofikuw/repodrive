@@ -158,7 +158,6 @@
     driveBack: $('driveBack'),
     driveUp: $('driveUp'),
     driveRefresh: $('driveRefresh'),
-    driveView: $('driveView'),
     driveUpload: $('driveUpload'),
     driveMore: $('driveMore'),
     driveRepoTitle: $('driveRepoTitle'),
@@ -201,7 +200,6 @@
   let showHiddenFiles = false;
   let drivePath = '';
   let driveHistory = [];
-  let driveViewMode = 'grid';
   let currentPreviewFile = null;
   let currentPreviewData = null;
   let previewObjectUrl = null;
@@ -290,20 +288,22 @@
     return path.split('.').pop().toLowerCase();
   }
 
-  function isImageFile(path) {
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'avif', 'svg', 'bmp', 'tiff', 'ico'].includes(getFileExtension(path));
-  }
+  const IMAGE_EXTS = ['jpg','jpeg','jpe','png','gif','webp','avif','svg','bmp','ico','tif','tiff','heic','heif','jxl','raw','dng','cr2','cr3','nef','arw','orf','rw2'];
+  const VIDEO_EXTS = ['mp4','mkv','mov','webm','avi','wmv','flv','m4v','3gp','3g2','mpeg','mpg','mpe','m2ts','mts','ts','ogv'];
+  const AUDIO_EXTS = ['mp3','wav','flac','m4a','aac','ogg','oga','opus','weba','wma','alac','aiff','aif','mid','midi'];
+  const TEXT_EXTS = ['txt','md','markdown','mdown','mkd','rst','adoc','json','jsonc','json5','js','mjs','cjs','jsx','ts','tsx','vue','svelte','py','pyw','java','kt','kts','scala','c','cc','cpp','cxx','h','hh','hpp','hxx','cs','go','rs','rb','php','swift','dart','lua','r','pl','pm','sh','bash','zsh','fish','ps1','bat','cmd','html','htm','css','scss','sass','less','xml','xhtml','svg','yaml','yml','toml','ini','cfg','conf','properties','env','gitignore','gitattributes','editorconfig','sql','graphql','gql','proto','log','out','err','csv','tsv','srt','vtt','ass','ssa','sub','m3u','m3u8','pls','lock','map','webmanifest','dockerfile'];
+  const OFFICE_EXTS = ['doc','docx','docm','dot','dotx','xls','xlsx','xlsm','xlt','ppt','pptx','pptm','pot','odt','ods','odp','rtf'];
+  const ARCHIVE_EXTS = ['zip','7z','rar','tar','gz','tgz','bz2','tbz','xz','txz','zst','lz4','cab','iso','apk','aab'];
+  const FONT_EXTS = ['ttf','otf','woff','woff2'];
+  const EBOOK_EXTS = ['epub','mobi','azw','azw3','fb2','cbz','cbr'];
 
-  function isVideoFile(path) {
-    return ['mp4', 'mkv', 'mov', 'webm', 'avi', 'wmv', 'flv', 'm4v', '3gp'].includes(getFileExtension(path));
-  }
-
-  function isAudioFile(path) {
-    return ['mp3', 'wav', 'flac', 'm4a', 'aac', 'ogg', 'wma', 'alac'].includes(getFileExtension(path));
-  }
-
+  function isImageFile(path) { return IMAGE_EXTS.includes(getFileExtension(path)); }
+  function isVideoFile(path) { return VIDEO_EXTS.includes(getFileExtension(path)); }
+  function isAudioFile(path) { return AUDIO_EXTS.includes(getFileExtension(path)); }
   function isTextFile(path) {
-    return ['txt', 'md', 'json', 'js', 'ts', 'py', 'java', 'c', 'cpp', 'h', 'go', 'rs', 'rb', 'php', 'html', 'css', 'xml', 'yaml', 'yml', 'toml', 'sh', 'bash', 'sql', 'csv', 'log'].includes(getFileExtension(path));
+    const ext = getFileExtension(path);
+    const name = String(path).split('/').pop().toLowerCase();
+    return TEXT_EXTS.includes(ext) || ['dockerfile','makefile','cmakelists.txt','license','readme'].includes(name);
   }
 
   // Theme Management
@@ -909,20 +909,32 @@
 
   // File Preview
   const PREVIEW_MIME = {
-    jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
-    avif: 'image/avif', svg: 'image/svg+xml', bmp: 'image/bmp', ico: 'image/x-icon', tif: 'image/tiff', tiff: 'image/tiff',
-    mp4: 'video/mp4', webm: 'video/webm', mov: 'video/quicktime', m4v: 'video/mp4', ogv: 'video/ogg',
-    mp3: 'audio/mpeg', wav: 'audio/wav', flac: 'audio/flac', m4a: 'audio/mp4', aac: 'audio/aac', ogg: 'audio/ogg',
-    pdf: 'application/pdf', json: 'application/json', csv: 'text/csv', txt: 'text/plain', md: 'text/markdown',
-    html: 'text/html', css: 'text/css', js: 'text/javascript', ts: 'text/typescript', xml: 'application/xml',
-    yaml: 'text/yaml', yml: 'text/yaml', toml: 'text/plain', sh: 'text/plain', bash: 'text/plain', log: 'text/plain',
-    py: 'text/x-python', java: 'text/x-java', c: 'text/plain', cpp: 'text/plain', h: 'text/plain', go: 'text/plain',
-    rs: 'text/plain', rb: 'text/plain', php: 'text/plain', sql: 'text/plain'
+    jpg:'image/jpeg',jpeg:'image/jpeg',jpe:'image/jpeg',png:'image/png',gif:'image/gif',webp:'image/webp',avif:'image/avif',svg:'image/svg+xml',bmp:'image/bmp',ico:'image/x-icon',tif:'image/tiff',tiff:'image/tiff',heic:'image/heic',heif:'image/heif',jxl:'image/jxl',
+    mp4:'video/mp4',webm:'video/webm',mov:'video/quicktime',m4v:'video/mp4',ogv:'video/ogg',avi:'video/x-msvideo',mkv:'video/x-matroska',mpeg:'video/mpeg',mpg:'video/mpeg',m2ts:'video/mp2t',mts:'video/mp2t',ts:'video/mp2t',
+    mp3:'audio/mpeg',wav:'audio/wav',flac:'audio/flac',m4a:'audio/mp4',aac:'audio/aac',ogg:'audio/ogg',oga:'audio/ogg',opus:'audio/opus',weba:'audio/webm',aiff:'audio/aiff',aif:'audio/aiff',wma:'audio/x-ms-wma',
+    pdf:'application/pdf',json:'application/json',csv:'text/csv',tsv:'text/tab-separated-values',txt:'text/plain',md:'text/markdown',markdown:'text/markdown',html:'text/html',htm:'text/html',css:'text/css',js:'text/javascript',mjs:'text/javascript',cjs:'text/javascript',jsx:'text/javascript',ts:'text/typescript',tsx:'text/typescript',xml:'application/xml',xhtml:'application/xhtml+xml',yaml:'text/yaml',yml:'text/yaml',toml:'text/plain',ini:'text/plain',conf:'text/plain',cfg:'text/plain',sh:'text/plain',bash:'text/plain',zsh:'text/plain',fish:'text/plain',ps1:'text/plain',bat:'text/plain',cmd:'text/plain',log:'text/plain',
+    py:'text/x-python',java:'text/x-java',kt:'text/x-kotlin',kts:'text/x-kotlin',c:'text/plain',cc:'text/plain',cpp:'text/plain',cxx:'text/plain',h:'text/plain',hpp:'text/plain',cs:'text/plain',go:'text/plain',rs:'text/plain',rb:'text/plain',php:'text/plain',swift:'text/plain',dart:'text/plain',lua:'text/plain',r:'text/plain',sql:'text/plain',graphql:'text/plain',gql:'text/plain',proto:'text/plain',srt:'text/plain',vtt:'text/vtt',ass:'text/plain',ssa:'text/plain',m3u:'audio/x-mpegurl',m3u8:'application/vnd.apple.mpegurl',pls:'audio/x-scpls',svgz:'image/svg+xml'
   };
 
   function previewMime(path) {
-    return PREVIEW_MIME[getFileExtension(path)] || 'application/octet-stream';
+    const ext = getFileExtension(path);
+    return PREVIEW_MIME[ext] || 'application/octet-stream';
   }
+
+  function previewCategory(path) {
+    const ext = getFileExtension(path);
+    if (isImageFile(path)) return 'image';
+    if (isVideoFile(path)) return 'video';
+    if (isAudioFile(path)) return 'audio';
+    if (ext === 'pdf') return 'pdf';
+    if (isTextFile(path)) return 'text';
+    if (OFFICE_EXTS.includes(ext)) return 'office';
+    if (ARCHIVE_EXTS.includes(ext)) return 'archive';
+    if (FONT_EXTS.includes(ext)) return 'font';
+    if (EBOOK_EXTS.includes(ext)) return 'ebook';
+    return 'binary';
+  }
+
 
   function revokePreviewUrl() {
     if (previewObjectUrl) {
@@ -985,6 +997,32 @@
   }
 
 
+  function renderCsvTable(text, delimiter = ',') {
+    const rows = [];
+    let row = [], cell = '', quoted = false;
+    for (let i = 0; i < text.length && rows.length < 500; i++) {
+      const ch = text[i], next = text[i + 1];
+      if (ch === '"' && quoted && next === '"') { cell += '"'; i++; continue; }
+      if (ch === '"') { quoted = !quoted; continue; }
+      if (!quoted && ch === delimiter) { row.push(cell); cell=''; continue; }
+      if (!quoted && (ch === '\n' || ch === '\r')) { if (ch==='\r' && next==='\n') i++; row.push(cell); cell=''; rows.push(row); row=[]; continue; }
+      cell += ch;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    if (!rows.length) return '<div class="preview-info">Empty table</div>';
+    const head = rows[0], body = rows.slice(1, 201);
+    return `<div class="preview-table-wrap"><table class="preview-table"><thead><tr>${head.map(x=>`<th>${escapeHtml(x)}</th>`).join('')}</tr></thead><tbody>${body.map(r=>`<tr>${head.map((_,i)=>`<td>${escapeHtml(r[i] ?? '')}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
+  }
+
+  function renderMarkdown(text) {
+    let safe = escapeHtml(text);
+    safe = safe.replace(/^###### (.*)$/gm,'<h6>$1</h6>').replace(/^##### (.*)$/gm,'<h5>$1</h5>').replace(/^#### (.*)$/gm,'<h4>$1</h4>').replace(/^### (.*)$/gm,'<h3>$1</h3>').replace(/^## (.*)$/gm,'<h2>$1</h2>').replace(/^# (.*)$/gm,'<h1>$1</h1>');
+    safe = safe.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>').replace(/`([^`]+)`/g,'<code>$1</code>');
+    safe = safe.replace(/^> (.*)$/gm,'<blockquote>$1</blockquote>').replace(/^- (.*)$/gm,'<li>$1</li>');
+    safe = safe.replace(/\n{2,}/g,'</p><p>').replace(/\n/g,'<br>');
+    return `<div class="markdown-render"><p>${safe}</p></div>`;
+  }
+
   async function previewFile(path) {
     if (!selected) return;
     const branch = els.branchSelect?.value || selected.default_branch || 'main';
@@ -992,7 +1030,7 @@
     currentPreviewData = null;
     revokePreviewUrl();
     els.previewTitle.textContent = path;
-    els.previewContent.innerHTML = '<div class="empty">Loading preview…</div>';
+    els.previewContent.innerHTML = '<div class="preview-loading"><span class="mix-spinner"></span> Loading…</div>';
     els.previewModal.showModal();
 
     try {
@@ -1000,58 +1038,97 @@
       const data = await api(`/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/contents/${apiPath}?ref=${encodeURIComponent(branch)}`);
       currentPreviewData = data;
       const ext = getFileExtension(path);
+      const category = previewCategory(path);
       const mime = previewMime(path);
 
-      if (isTextFile(path) || ['md', 'json', 'csv', 'xml', 'yaml', 'yml', 'toml', 'log'].includes(ext)) {
+      if (category === 'text') {
         const content = await previewText(data);
-        const safe = escapeHtml(content);
-        if (ext === 'md') {
-          els.previewContent.innerHTML = `<div class="markdown-body preview-text">${safe}</div>`;
+        if (['csv','tsv'].includes(ext)) {
+          els.previewContent.innerHTML = renderCsvTable(content, ext === 'tsv' ? '\t' : ',');
+        } else if (['json','jsonc','json5'].includes(ext)) {
+          let formatted = content; try { formatted = JSON.stringify(JSON.parse(content), null, 2); } catch {}
+          els.previewContent.innerHTML = `<pre class="preview-text code-${ext}">${escapeHtml(formatted)}</pre>`;
+        } else if (['md','markdown'].includes(ext)) {
+          els.previewContent.innerHTML = renderMarkdown(content);
+        } else if (['html','htm','svg','xhtml'].includes(ext)) {
+          els.previewContent.innerHTML = `<div class="preview-source-label">Source preview · ${escapeHtml(mime)}</div><pre class="preview-text code-${ext}">${escapeHtml(content)}</pre>`;
         } else {
-          els.previewContent.innerHTML = `<pre class="preview-text">${safe}</pre>`;
+          els.previewContent.innerHTML = `<div class="preview-source-label">${escapeHtml(ext || 'text')} · ${fmt(data.size || content.length)}</div><pre class="preview-text code-${ext}">${escapeHtml(content)}</pre>`;
         }
         return;
       }
 
-      if (['image', 'video', 'audio'].some(kind => ({ image: isImageFile(path), video: isVideoFile(path), audio: isAudioFile(path) }[kind]))) {
+      if (category === 'image') {
         const blob = await getPreviewBlob(data, mime);
         previewObjectUrl = URL.createObjectURL(blob);
-        const tag = isImageFile(path) ? 'img' : isVideoFile(path) ? 'video' : 'audio';
-        if (tag === 'img') {
-          els.previewContent.innerHTML = `<img src="${previewObjectUrl}" alt="${escapeHtml(path)}">`;
-        } else if (tag === 'video') {
-          els.previewContent.innerHTML = `<video controls playsinline src="${previewObjectUrl}"></video>`;
-        } else {
-          els.previewContent.innerHTML = `<audio controls src="${previewObjectUrl}"></audio>`;
-        }
+        els.previewContent.innerHTML = `<div class="preview-media image-preview"><img src="${previewObjectUrl}" alt="${escapeHtml(path)}"></div>`;
         return;
       }
 
-      if (ext === 'pdf') {
+      if (category === 'video') {
+        const blob = await getPreviewBlob(data, mime);
+        previewObjectUrl = URL.createObjectURL(blob);
+        els.previewContent.innerHTML = `<div class="preview-media video-preview"><video controls playsinline preload="metadata" src="${previewObjectUrl}"></video><div class="media-note">If this codec is not supported by your browser, download the file to play it.</div></div>`;
+        return;
+      }
+
+      if (category === 'audio') {
+        const blob = await getPreviewBlob(data, mime);
+        previewObjectUrl = URL.createObjectURL(blob);
+        els.previewContent.innerHTML = `<div class="preview-media audio-preview"><div class="audio-art">♫</div><strong>${escapeHtml(path.split('/').pop())}</strong><audio controls preload="metadata" src="${previewObjectUrl}"></audio><div class="media-note">Browser codec support varies by format.</div></div>`;
+        return;
+      }
+
+      if (category === 'pdf') {
         const blob = await getPreviewBlob(data, mime);
         previewObjectUrl = URL.createObjectURL(blob);
         els.previewContent.innerHTML = `<iframe src="${previewObjectUrl}" title="PDF preview"></iframe>`;
         return;
       }
 
-      const office = ['doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'odt', 'ods', 'odp', 'rtf'];
-      const archive = ['zip', '7z', 'rar', 'tar', 'gz', 'bz2', 'xz'];
-      let note = 'This file type cannot be rendered directly in the browser.';
-      if (office.includes(ext)) note = 'Office/OpenDocument preview needs a dedicated document renderer. Download the file to open it safely.';
-      if (archive.includes(ext)) note = 'Archive contents are not rendered in the browser. Download the archive to inspect it.';
-      els.previewContent.innerHTML = `
-        <div class="preview-info">
-          <div style="font-size:42px">📄</div>
-          <strong>${escapeHtml(path)}</strong>
-          <div class="preview-format">.${escapeHtml(ext)} · ${escapeHtml(note)}</div>
-          <div class="preview-actions">
-            <a href="${escapeHtml(data.download_url || '#')}" class="primary-btn" target="_blank" rel="noopener">📥 Download / Open</a>
-          </div>
-        </div>`;
+      if (category === 'font') {
+        const blob = await getPreviewBlob(data, mime);
+        const fontUrl = URL.createObjectURL(blob);
+        const family = `RepoPreview_${Date.now()}`;
+        try {
+          const font = new FontFace(family, `url(${fontUrl})`);
+          await font.load(); document.fonts.add(font);
+          els.previewContent.innerHTML = `<div class="font-preview" style="font-family:'${family}'"><div class="preview-format">${escapeHtml(ext.toUpperCase())} font preview</div><div class="font-sample">Aa Bb Cc 0123</div><div class="font-sample small">The quick brown fox jumps over the lazy dog.</div></div>`;
+          previewObjectUrl = fontUrl;
+        } catch {
+          URL.revokeObjectURL(fontUrl);
+          els.previewContent.innerHTML = `<div class="preview-info"><strong>Font preview unavailable</strong><div class="preview-format">${escapeHtml(ext.toUpperCase())} · download to inspect this font.</div></div>`;
+        }
+        return;
+      }
+
+      if (category === 'archive') {
+        const size = fmt(data.size || 0);
+        els.previewContent.innerHTML = `<div class="preview-info"><div class="preview-big-icon">${driveFileIcon(path)}</div><strong>${escapeHtml(path.split('/').pop())}</strong><div class="preview-format">${escapeHtml(ext.toUpperCase())} archive · ${size}</div><p>Archive browsing depends on the archive codec. RepoDrive keeps the original archive intact and provides a direct download.</p><div class="preview-actions"><button class="primary-btn" data-preview-download>Download archive</button></div></div>`;
+        els.previewContent.querySelector('[data-preview-download]')?.addEventListener('click', downloadPreviewFile);
+        return;
+      }
+
+      if (category === 'office') {
+        els.previewContent.innerHTML = `<div class="preview-info"><div class="preview-big-icon">${driveFileIcon(path)}</div><strong>${escapeHtml(path.split('/').pop())}</strong><div class="preview-format">${escapeHtml(ext.toUpperCase())} document</div><p>Office/OpenDocument files are preserved exactly. A browser-side renderer is not forced on private GitHub files, so the file can be downloaded safely for opening in the native editor.</p><div class="preview-actions"><button class="primary-btn" data-preview-download>Download document</button></div></div>`;
+        els.previewContent.querySelector('[data-preview-download]')?.addEventListener('click', downloadPreviewFile);
+        return;
+      }
+
+      if (category === 'ebook') {
+        els.previewContent.innerHTML = `<div class="preview-info"><div class="preview-big-icon">📖</div><strong>${escapeHtml(path.split('/').pop())}</strong><div class="preview-format">${escapeHtml(ext.toUpperCase())} e-book</div><p>eBook reading requires a dedicated browser reader. The original file remains available without conversion.</p><div class="preview-actions"><button class="primary-btn" data-preview-download>Download e-book</button></div></div>`;
+        els.previewContent.querySelector('[data-preview-download]')?.addEventListener('click', downloadPreviewFile);
+        return;
+      }
+
+      els.previewContent.innerHTML = `<div class="preview-info"><div class="preview-big-icon">${driveFileIcon(path)}</div><strong>${escapeHtml(path.split('/').pop())}</strong><div class="preview-format">${escapeHtml((ext || 'FILE').toUpperCase())} · ${fmt(data.size || 0)}</div><p>This binary format cannot be rendered safely in the browser. RepoDrive can still download the original bytes without modification.</p><div class="preview-actions"><button class="primary-btn" data-preview-download>Download file</button></div></div>`;
+      els.previewContent.querySelector('[data-preview-download]')?.addEventListener('click', downloadPreviewFile);
     } catch (e) {
-      els.previewContent.innerHTML = `<div class="preview-info"><strong>Preview failed</strong><div class="preview-format">${escapeHtml(e.message)}</div></div>`;
+      els.previewContent.innerHTML = `<div class="preview-info"><strong>Preview failed</strong><div class="preview-format">${escapeHtml(e.message)}</div><div class="preview-actions"><button class="primary-btn" data-preview-download>Download file</button></div></div>`;
+      els.previewContent.querySelector('[data-preview-download]')?.addEventListener('click', downloadPreviewFile);
     }
   }
+
 
   // File History
   async function showFileHistory(path) {
@@ -1374,16 +1451,18 @@ jobs:
 
   function driveFileIcon(path, isFolder = false) {
     if (isFolder) return driveIconSvg('folder');
-    const ext = (path.split('.').pop() || '').toLowerCase();
-    if (['jpg','jpeg','png','gif','webp','svg','bmp','heic','avif','tiff','ico'].includes(ext)) return driveIconSvg('image');
-    if (['mp4','mkv','mov','webm','avi','m4v','wmv','flv','3gp'].includes(ext)) return driveIconSvg('video');
-    if (['mp3','wav','flac','m4a','ogg','aac','wma','alac'].includes(ext)) return driveIconSvg('audio');
-    if (['zip','rar','7z','tar','gz','bz2','xz'].includes(ext)) return driveIconSvg('archive');
+    const ext = getFileExtension(path);
+    if (IMAGE_EXTS.includes(ext)) return driveIconSvg('image');
+    if (VIDEO_EXTS.includes(ext)) return driveIconSvg('video');
+    if (AUDIO_EXTS.includes(ext)) return driveIconSvg('audio');
+    if (ARCHIVE_EXTS.includes(ext)) return driveIconSvg('archive');
     if (ext === 'pdf') return driveIconSvg('pdf');
-    if (['js','jsx','ts','tsx','py','java','c','cpp','h','css','html','json','xml','yml','yaml','sh','bash','sql'].includes(ext)) return driveIconSvg('code');
-    if (['doc','docx','txt','md','rtf','csv','log'].includes(ext)) return driveIconSvg('text');
+    if (FONT_EXTS.includes(ext)) return driveIconSvg('text');
+    if (OFFICE_EXTS.includes(ext) || EBOOK_EXTS.includes(ext)) return driveIconSvg('text');
+    if (TEXT_EXTS.includes(ext) || ['dockerfile','makefile','license','readme'].includes(String(path).split('/').pop().toLowerCase())) return driveIconSvg('code');
     return driveIconSvg('file');
   }
+
 
   function driveRepoIcon(privateRepo = false) {
     return privateRepo
@@ -1471,7 +1550,7 @@ jobs:
     folders.sort(cmp); files.sort(cmp);
     const total = folders.length + files.length;
     els.driveItemCount.textContent = `${total} item${total === 1 ? '' : 's'}`;
-    els.driveFileGrid.classList.toggle('list-mode', driveViewMode === 'list');
+    els.driveFileGrid.classList.remove('list-mode');
     els.driveFileGrid.innerHTML = '';
     els.driveEmpty.classList.toggle('hidden', total !== 0);
     if (!total) return;
@@ -1491,8 +1570,8 @@ jobs:
       const name = f.path.split('/').pop();
       const checked = selectedTree.has(f.path);
       const item = document.createElement('article');
-      item.className = `drive-item${checked ? ' selected' : ''}`;
-      item.innerHTML = `<input class="drive-item-check" type="checkbox" ${checked ? 'checked' : ''} aria-label="Select ${escapeHtml(name)}"><div class="drive-item-head"><div class="drive-file-icon">${driveFileIcon(f.path)}</div><div class="drive-item-name">${escapeHtml(name)}</div></div><div class="drive-item-meta"><span>${escapeHtml((f.path.split('.').pop()||'FILE').toUpperCase())}</span><span>${fmt(f.size)}</span></div><div class="drive-item-actions"><button data-action="preview" title="Preview">◉</button><button data-action="favorite" title="Favorite">★</button><button data-action="share" title="Share">⌯</button></div>`;
+      item.className = `drive-item file-row${checked ? ' selected' : ''}`;
+      item.innerHTML = `<input class="drive-item-check" type="checkbox" ${checked ? 'checked' : ''} aria-label="Select ${escapeHtml(name)}"><div class="drive-item-head"><div class="drive-file-icon">${driveFileIcon(f.path)}</div><div class="drive-item-name" title="${escapeHtml(f.path)}">${escapeHtml(name)}</div></div><div class="drive-item-type">${escapeHtml((f.path.split('.').pop()||'FILE').toUpperCase())}</div><div class="drive-item-meta"><span>${fmt(f.size)}</span></div><div class="drive-item-actions"><button data-action="preview" title="Preview">◉</button><button data-action="favorite" title="Favorite">★</button><button data-action="share" title="Share">⌯</button></div>`;
       const cb=item.querySelector('.drive-item-check');
       cb.addEventListener('click', e => e.stopPropagation());
       cb.addEventListener('change', () => { cb.checked ? selectedTree.add(f.path) : selectedTree.delete(f.path); item.classList.toggle('selected',cb.checked); renderBulk(); });
@@ -1892,7 +1971,6 @@ jobs:
   if (els.driveRefresh) els.driveRefresh.addEventListener('click', loadTree);
   if (els.driveBack) els.driveBack.addEventListener('click', () => { if (driveHistory.length) drivePath=driveHistory.pop(); else driveGoUp(); renderDriveFiles(); });
   if (els.driveUp) els.driveUp.addEventListener('click', driveGoUp);
-  if (els.driveView) els.driveView.addEventListener('click', () => { driveViewMode = driveViewMode === 'grid' ? 'list' : 'grid'; els.driveView.textContent = driveViewMode === 'grid' ? '☷' : '▦'; renderDriveFiles(); });
   if (els.driveFileSearch) els.driveFileSearch.addEventListener('input', renderDriveFiles);
   if (els.driveSort) els.driveSort.addEventListener('change', renderDriveFiles);
   if (els.driveSelectAll) els.driveSelectAll.addEventListener('click', () => {
