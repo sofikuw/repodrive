@@ -3283,3 +3283,81 @@ html[data-theme="light"] .drive-item-name { color: #343436; }
   .markdown-render { padding:16px; }
   .font-sample { font-size:42px; }
 }
+
+/* Final mobile drawer fix: one authoritative rule set.  The repository
+   picker must sit above the backdrop and must never leave a permanent blur. */
+@media (max-width: 800px) {
+  body.drive-menu-open { overflow: hidden; }
+
+  #appView:not(.hidden) .drive-sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    bottom: 0 !important;
+    width: min(310px, calc(100vw - 34px)) !important;
+    height: 100dvh !important;
+    max-height: none !important;
+    z-index: 1001 !important;
+    transform: translate3d(-105%, 0, 0) !important;
+    visibility: hidden;
+    opacity: 1 !important;
+    transition: transform .2s ease, visibility 0s linear .2s;
+    background: var(--mix-header-bg, #0b1517) !important;
+    border-right: 1px solid var(--mix-line, #294142) !important;
+    border-left: 0 !important;
+    box-shadow: 14px 0 32px rgba(0,0,0,.5) !important;
+    overflow: hidden auto !important;
+  }
+
+  body.drive-menu-open #appView:not(.hidden) .drive-sidebar {
+    transform: translate3d(0, 0, 0) !important;
+    visibility: visible;
+    transition: transform .2s ease;
+  }
+
+  /* Use the backdrop only as a sibling layer; never blur the drawer itself. */
+  body.drive-menu-open::before {
+    content: "";
+    position: fixed !important;
+    inset: 0 !important;
+    z-index: 1000 !important;
+    background: rgba(0,0,0,.56) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  body.drive-menu-open::after { display: none !important; }
+
+  #appView:not(.hidden) .drive-sidebar .drive-side-head {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--mix-header-bg, #0b1517);
+  }
+
+  #appView:not(.hidden) .drive-sidebar .drive-search-wrap {
+    margin: 8px 10px;
+  }
+
+  #appView:not(.hidden) .drive-repo-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 2px !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  #appView:not(.hidden) .drive-repo-item {
+    min-height: 52px;
+    padding: 10px 12px !important;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  #appView:not(.hidden) .drive-menu {
+    position: relative;
+    z-index: 1002;
+    touch-action: manipulation;
+  }
+}

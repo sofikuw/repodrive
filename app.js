@@ -1504,7 +1504,12 @@ jobs:
       b.type = 'button';
       b.className = `drive-repo-item${selected?.id === r.id ? ' active' : ''}`;
       b.innerHTML = `<div class="r-title"><span class="r-lock">${driveRepoIcon(r.private)}</span><span>${escapeHtml(r.name)}</span></div><div class="r-meta">${fmt(r.sizeKB * 1024)} · ${escapeHtml(r.default_branch)}</div>`;
-      b.addEventListener('click', () => { selectRepo(r); document.body.classList.remove('drive-menu-open'); els.driveMenu?.setAttribute('aria-expanded','false'); });
+      b.addEventListener('click', async () => {
+        // Close the mobile repository drawer immediately so its backdrop can
+        // never remain over the explorer while the repository is loading.
+        closeDriveMenu();
+        try { await selectRepo(r); } catch (e) { toast(e.message || 'Could not open repository.', 'error'); }
+      });
       els.driveRepoList.appendChild(b);
     }
   }
@@ -1959,9 +1964,27 @@ jobs:
   els.webdavMount.addEventListener('click', showWebDAV);
   
   // Cloud explorer controls
-  if (els.driveMenu) els.driveMenu.addEventListener('click', () => {
-    const open = document.body.classList.toggle('drive-menu-open');
+  function closeDriveMenu() {
+    document.body.classList.remove('drive-menu-open');
+    els.driveMenu?.setAttribute('aria-expanded', 'false');
+  }
+
+  if (els.driveMenu) els.driveMenu.addEventListener('click', (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const open = !document.body.classList.contains('drive-menu-open');
+    document.body.classList.toggle('drive-menu-open', open);
     els.driveMenu.setAttribute('aria-expanded', String(open));
+  });
+
+  // Clicking outside the drawer or pressing Escape must always dismiss it.
+  document.addEventListener('click', (event) => {
+    if (!document.body.classList.contains('drive-menu-open')) return;
+    if (event.target.closest('.drive-sidebar, #driveMenu')) return;
+    closeDriveMenu();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closeDriveMenu();
   });
   if (els.driveRepoSearch) els.driveRepoSearch.addEventListener('input', renderDriveRepos);
   if (els.driveNewRepo) els.driveNewRepo.addEventListener('click', () => els.newRepoBtn.click());
