@@ -182,24 +182,28 @@
   const LIMIT_FILE = 50 * 1024 * 1024;
   const LIMIT_BATCH = 150 * 1024 * 1024;
   const DEFAULT_RULES = [
-    { pattern: '^IMG[_-].*|\\.(jpe?g|png|gif|webp|heic|avif)$', folder: 'Images' },
-    { pattern: '\\.(mp4|mkv|mov|webm|avi)$', folder: 'Videos' },
-    { pattern: '\\.(mp3|wav|flac|m4a|aac|ogg|oga|opus|wma|aiff|aif)$', folder: 'Audio' },
-    { pattern: '\\.(pdf|docx?|xlsx?|pptx?|csv|txt|md)$', folder: 'Documents' },
-    { pattern: '\\.(zip|7z|rar|tar|gz|bz2)$', folder: 'Archives' },
-    { pattern: '\\.(apk|aab|exe|msi|deb|rpm)$', folder: 'Apps' },
-    { pattern: '\\.(js|jsx|ts|tsx|py|java|c|cpp|h|css|html|json|yml|yaml|sh)$', folder: 'Code' }
+    { pattern: '^IMG[_-].*|\\.(jpe?g|jpe|png|gif|webp|heic|heif|avif|bmp|tiff?|ico|svg|raw|dng|cr2|nef|arw)$', folder: 'Images' },
+    { pattern: '\\.(mp4|mkv|mov|webm|avi|wmv|flv|m4v|3gp|mpeg|mpg|m2ts|mts|ts|ogv)$', folder: 'Videos' },
+    { pattern: '\\.(mp3|wav|flac|m4a|aac|ogg|oga|opus|wma|aiff|aif|alac|mid|midi|weba)$', folder: 'Audio' },
+    { pattern: '\\.(pdf|docx?|docm|xlsx?|xlsm|pptx?|pptm|odt|ods|odp|rtf|csv|tsv|txt|md|markdown|epub|mobi)$', folder: 'Documents' },
+    { pattern: '\\.(zip|7z|rar|tar|gz|tgz|bz2|xz|zst|iso|cab)$', folder: 'Archives' },
+    { pattern: '\\.(apk|aab|exe|msi|deb|rpm|dmg|pkg|appimage)$', folder: 'Apps' },
+    { pattern: '\\.(js|mjs|cjs|jsx|ts|tsx|py|pyw|java|kt|c|cc|cpp|h|hpp|cs|go|rs|rb|php|swift|dart|lua|css|scss|html?|vue|svelte|json|jsonc|yml|yaml|toml|xml|sh|bash|zsh|ps1|sql|graphql)$', folder: 'Code' },
+    { pattern: '\\.(ttf|otf|woff2?|eot)$', folder: 'Fonts' },
+    { pattern: '\\.(psd|ai|fig|sketch|xd|blend|obj|fbx|stl)$', folder: 'Design' }
   ];
 
   // State
   let token = null, refreshToken = null, tokenExpiresAt = 0, authAbort = null;
   let me = null, repositories = [], selected = null, treeEntries = [], pending = [], selectedTree = new Set();
+  let fileClipboard = { mode: null, paths: [] }; // mode: 'copy' | 'cut'
   let rules = loadRules();
   let favorites = loadFavorites();
   let viewMode = 'list';
   let showHiddenFiles = false;
   let drivePath = '';
   let driveHistory = [];
+  let autoSortEnabled = localStorage.getItem('repodrive_auto_sort') !== '0';
   let currentPreviewFile = null;
   let currentPreviewData = null;
   let previewObjectUrl = null;
@@ -229,6 +233,20 @@
   function saveFavorites() {
     localStorage.setItem('repodrive_favorites', JSON.stringify(favorites));
   }
+
+  function loadRecents() {
+    try { return JSON.parse(localStorage.getItem('repodrive_recents') || '[]'); }
+    catch { return []; }
+  }
+  function pushRecent(path) {
+    if (!selected || !path) return;
+    let list = loadRecents().filter(x => !(x.repo === selected.full_name && x.path === path));
+    list.unshift({ repo: selected.full_name, path, at: Date.now() });
+    list = list.slice(0, 40);
+    localStorage.setItem('repodrive_recents', JSON.stringify(list));
+  }
+  const TRASH_ROOT = '.trash';
+
 
   function updateRuleCount() {
     els.ruleCount.textContent = `${rules.length} rules`;
@@ -629,64 +647,90 @@
     selected = repo;
     drivePath = '';
     driveHistory = [];
-    renderRepos();
-    renderDriveLocation();
-    els.workspace.classList.remove('hidden');
-    els.selectedRepo.textContent = repo.full_name;
-    els.selectedMeta.textContent = `${repo.private ? 'Private' : 'Public'} · ${fmt(repo.sizeKB * 1024)} reported by GitHub`;
-    els.githubRepoLink.href = repo.html_url;
-    els.branchSelect.innerHTML = '<option>Loading branches…</option>';
     selectedTree.clear();
+    try { renderRepos(); } catch {}
+    renderDriveLocation();
+    if (els.workspace) els.workspace.classList.remove('hidden');
+    if (els.selectedRepo) els.selectedRepo.textContent = repo.full_name;
+    if (els.selectedMeta) els.selectedMeta.textContent = `${repo.private ? 'Private' : 'Public'} · ${fmt(repo.sizeKB * 1024)} reported by GitHub`;
+    if (els.githubRepoLink) els.githubRepoLink.href = repo.html_url;
+    if (els.branchSelect) els.branchSelect.innerHTML = `<option value="${escapeHtml(repo.default_branch || 'main')}">${escapeHtml(repo.default_branch || 'main')}</option>`;
     renderBulk();
     await loadBranches();
     await loadTree();
-    window.scrollTo({ top: document.querySelector('.selected-row').offsetTop - 80, behavior: 'smooth' });
+    renderDriveFiles();
   }
 
   async function loadBranches() {
     try {
       const branches = await api(`/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/branches?per_page=100`);
-      els.branchSelect.innerHTML = '';
-      for (const b of branches) {
-        const o = document.createElement('option');
-        o.value = b.name;
-        o.textContent = b.name;
-        if (b.name === selected.default_branch) o.selected = true;
-        els.branchSelect.appendChild(o);
-      }
-      if (!branches.length) els.branchSelect.innerHTML = '<option value="">No branches</option>';
+      const fill = (sel) => {
+        if (!sel) return;
+        sel.innerHTML = '';
+        for (const b of branches) {
+          const o = document.createElement('option');
+          o.value = b.name;
+          o.textContent = b.name;
+          if (b.name === selected.default_branch) o.selected = true;
+          sel.appendChild(o);
+        }
+        if (!branches.length) sel.innerHTML = '<option value="">No branches</option>';
+      };
+      fill(els.branchSelect);
+      fill(document.getElementById('driveBranchSelect'));
     } catch (e) {
-      els.branchSelect.innerHTML = '<option value="">Unable to load branches</option>';
+      if (els.branchSelect) els.branchSelect.innerHTML = '<option value="">Unable to load branches</option>';
+      const ds = document.getElementById('driveBranchSelect');
+      if (ds) ds.innerHTML = '<option value="">—</option>';
       status(e.message, 'error');
     }
   }
 
   async function loadTree() {
-    if (!selected || !els.branchSelect.value) return;
-    els.fileTree.innerHTML = '<div class="empty">Loading repository files…</div>';
+    if (!selected) return;
+    const branch = (els.branchSelect && els.branchSelect.value) || selected.default_branch || 'main';
+    if (els.fileTree) els.fileTree.innerHTML = '<div class="empty">Loading repository files…</div>';
+    if (els.driveSyncStatus) els.driveSyncStatus.textContent = 'Refreshing…';
     try {
-      const d = await api(`/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/git/trees/${encodeURIComponent(els.branchSelect.value)}?recursive=1`);
+      const d = await api(`/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/git/trees/${encodeURIComponent(branch)}?recursive=1`);
       treeEntries = (d.tree || [])
         .filter(x => x.type === 'blob')
         .map(x => ({ path: x.path, sha: x.sha, size: Number(x.size) || 0 }));
       const sum = treeEntries.reduce((n, x) => n + x.size, 0);
-      els.treeSummary.textContent = `${treeEntries.length} files`;
-      els.treeStorage.textContent = `Tree size ${fmt(sum)} · GitHub repo size ${fmt(selected.sizeKB * 1024)}`;
+      if (els.treeSummary) els.treeSummary.textContent = `${treeEntries.length} files`;
+      if (els.treeStorage) els.treeStorage.textContent = `Tree size ${fmt(sum)} · GitHub repo size ${fmt(selected.sizeKB * 1024)}`;
       renderTree();
-      renderRepoStats();
+      try { renderRepoStats(); } catch {}
+      renderDriveFiles();
+      if (els.driveSyncStatus) els.driveSyncStatus.textContent = `Synced ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
     } catch (e) {
-      els.fileTree.innerHTML = '';
-      els.fileTreeEmpty.classList.remove('hidden');
+      if (els.fileTree) els.fileTree.innerHTML = '';
+      if (els.fileTreeEmpty) els.fileTreeEmpty.classList.remove('hidden');
       status(e.message, 'error');
+      toast(e.message || 'Could not load files', 'error');
+      if (els.driveSyncStatus) els.driveSyncStatus.textContent = 'Error';
     }
   }
 
-  // File Categorization
+  // File Categorization + Auto-sort
   function categoryFor(name) {
+    const base = String(name || '').split('/').pop();
     for (const r of rules) {
       try {
-        if (new RegExp(r.pattern, 'i').test(name)) return r.folder;
+        if (new RegExp(r.pattern, 'i').test(base)) return r.folder;
       } catch {}
+    }
+    // Smart fallback by extension lists
+    const ext = getFileExtension(base);
+    if (typeof IMAGE_EXTS !== 'undefined' && IMAGE_EXTS.includes(ext)) return 'Images';
+    if (typeof VIDEO_EXTS !== 'undefined' && VIDEO_EXTS.includes(ext)) return 'Videos';
+    if (typeof AUDIO_EXTS !== 'undefined' && AUDIO_EXTS.includes(ext)) return 'Audio';
+    if (typeof ARCHIVE_EXTS !== 'undefined' && ARCHIVE_EXTS.includes(ext)) return 'Archives';
+    if (typeof FONT_EXTS !== 'undefined' && FONT_EXTS.includes(ext)) return 'Fonts';
+    if ((typeof OFFICE_EXTS !== 'undefined' && OFFICE_EXTS.includes(ext)) || (typeof EBOOK_EXTS !== 'undefined' && EBOOK_EXTS.includes(ext)) || ext === 'pdf') return 'Documents';
+    if (typeof TEXT_EXTS !== 'undefined' && TEXT_EXTS.includes(ext)) {
+      if (['js','mjs','cjs','jsx','ts','tsx','py','java','kt','c','cpp','h','cs','go','rs','rb','php','swift','css','scss','html','htm','vue','json','yml','yaml','sh','sql'].includes(ext)) return 'Code';
+      return 'Documents';
     }
     return 'Other';
   }
@@ -694,15 +738,22 @@
   function buildPath(filePath) {
     const raw = safePath(filePath);
     if (!raw) throw new Error(`Unsafe file path: ${filePath}`);
-    // Prefer current explorer folder when using the MiX drive UI
-    if (selected && typeof drivePath === 'string') {
-      const name = raw.split('/').pop();
-      return [drivePath, name].filter(Boolean).join('/');
-    }
-    const folder = categoryFor(raw.split('/').pop());
-    const prefix = (els.prefix?.value || '').trim().replace(/^\/+|\/+$/g, '');
     const name = raw.split('/').pop();
-    return [prefix, folder, name].filter(Boolean).join('/');
+    const prefix = (els.prefix?.value || '').trim().replace(/^\/+|\/+$/g, '');
+
+    // Auto-sort ON → type folders (Images, Audio, Documents, …)
+    if (autoSortEnabled) {
+      const folder = categoryFor(name);
+      const currentLeaf = drivePath ? drivePath.split('/').filter(Boolean).pop() : '';
+      // Already inside matching category folder → stay here
+      if (currentLeaf && currentLeaf.toLowerCase() === folder.toLowerCase()) {
+        return [drivePath, name].filter(Boolean).join('/');
+      }
+      return [prefix, folder, name].filter(Boolean).join('/');
+    }
+
+    // Auto-sort OFF → current explorer folder
+    return [drivePath, name].filter(Boolean).join('/');
   }
 
   // File Collection
@@ -745,7 +796,18 @@
       renderPending();
       updateDrivePendingBar();
       status('');
-      toast(`${collected.length} file${collected.length === 1 ? '' : 's'} staged for upload`, 'good');
+      if (autoSortEnabled && collected.length) {
+        const buckets = {};
+        collected.forEach(x => {
+          const parts = x.destPath.split('/');
+          const folder = parts.length > 1 ? parts[parts.length - 2] : '(root)';
+          buckets[folder] = (buckets[folder] || 0) + 1;
+        });
+        const summary = Object.entries(buckets).map(([k, n]) => `${k}: ${n}`).join(' · ');
+        toast(`Auto-sorted ${collected.length} → ${summary}`, 'good');
+      } else {
+        toast(`${collected.length} file${collected.length === 1 ? '' : 's'} staged for upload`, 'good');
+      }
 
       // Auto-commit from the explorer Upload button / drop zone
       if (autoCommit) {
@@ -855,17 +917,29 @@
     return btoa(binary);
   }
 
+  function setDriveProgress(pct, label) {
+    const wrap = document.getElementById('driveUploadProgress');
+    const fill = document.getElementById('driveProgressFill');
+    const lab = document.getElementById('driveProgressLabel');
+    if (!wrap) return;
+    if (pct == null) {
+      wrap.classList.add('hidden');
+      return;
+    }
+    wrap.classList.remove('hidden');
+    if (fill) fill.style.width = Math.max(0, Math.min(100, pct)) + '%';
+    if (lab) lab.textContent = label || `${Math.round(pct)}%`;
+  }
+
   async function publish() {
     if (!selected || !pending.length) return;
     if (els.commitBtn) els.commitBtn.disabled = true;
-    
-    // Show progress (legacy bar if present, else toast)
-    const progressBar = document.querySelector('.progress-fill');
-    const progressLabel = document.querySelector('.progress-label');
-    if (els.uploadProgress) els.uploadProgress.classList.remove('hidden');
+
+    const total = pending.length;
+    setDriveProgress(2, `Preparing ${total} file${total === 1 ? '' : 's'}…`);
     if (els.driveSyncStatus) els.driveSyncStatus.textContent = 'Uploading…';
-    toast(`Uploading ${pending.length} file${pending.length === 1 ? '' : 's'}…`, '');
-    
+    toast(`Uploading ${total} file${total === 1 ? '' : 's'}…`, '');
+
     try {
       const owner = selected.owner, repo = selected.name;
       const branch = (els.branchSelect && els.branchSelect.value) || selected.default_branch || 'main';
@@ -873,38 +947,40 @@
       const ref = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/ref/heads/${encodeURIComponent(branch)}`);
       const head = ref.object.sha;
       const parent = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/commits/${head}`);
-      
+
       const tree = [];
       for (let i = 0; i < pending.length; i++) {
         const x = pending[i];
-        const percent = ((i + 1) / pending.length * 100).toFixed(1);
-        if (progressBar) progressBar.style.width = percent + '%';
-        if (progressLabel) progressLabel.textContent = `${i+1}/${pending.length} (${percent}%)`;
-        if (els.driveSyncStatus) els.driveSyncStatus.textContent = `Uploading ${i+1}/${pending.length}`;
-        status(`Uploading ${i+1}/${pending.length}: ${x.destPath}`);
-        
+        const pct = ((i + 0.5) / total) * 90;
+        setDriveProgress(pct, `Uploading ${i + 1}/${total}: ${x.destPath.split('/').pop()}`);
+        if (els.driveSyncStatus) els.driveSyncStatus.textContent = `Uploading ${i + 1}/${total}`;
+        status(`Uploading ${i + 1}/${total}: ${x.destPath}`);
+
         const blob = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/blobs`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ content: await fileBase64(x.file), encoding: 'base64' })
         });
         tree.push({ path: x.destPath, mode: '100644', type: 'blob', sha: blob.sha });
+        setDriveProgress(((i + 1) / total) * 90, `Uploaded ${i + 1}/${total}`);
       }
-      
+
+      setDriveProgress(92, 'Building commit…');
       status('Building atomic tree…');
       const newTree = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ base_tree: parent.tree.sha, tree })
       });
-      
+
       const message = (els.commitMessage && els.commitMessage.value.trim()) || `Upload ${tree.length} file${tree.length === 1 ? '' : 's'} via RepoDrive`;
       const commit = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/commits`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message, tree: newTree.sha, parents: [head] })
       });
-      
+
+      setDriveProgress(96, 'Updating branch…');
       status('Updating branch without force-push…');
       const updated = await fetch(`${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/refs/heads/${encodeURIComponent(branch)}`, {
         method: 'PATCH',
@@ -918,26 +994,25 @@
       });
       const data = await updated.json();
       if (!updated.ok) throw new Error(updated.status === 409 || updated.status === 422 ? 'The branch changed while uploading. Nothing was force-pushed; refresh and retry.' : data?.message || `Could not update branch (${updated.status}).`);
-      
+
       pending = [];
       if (els.filePicker) els.filePicker.value = '';
       if (els.folderPicker) els.folderPicker.value = '';
       renderPending();
       updateDrivePendingBar();
-      if (progressBar) progressBar.style.width = '100%';
-      if (progressLabel) progressLabel.textContent = 'Complete!';
-      if (els.uploadProgress) setTimeout(() => els.uploadProgress.classList.add('hidden'), 2000);
+      setDriveProgress(100, 'Done');
       status(`✅ Saved ${tree.length} file${tree.length === 1 ? '' : 's'} in one commit.`, 'good');
       toast('✅ Uploaded to GitHub.', 'good');
       await loadRepos();
-      await loadTree();
+      await loadTree(); // auto-refresh grid
+      setTimeout(() => setDriveProgress(null), 1200);
     } catch (e) {
       status(e.message, 'error');
       toast(e.message || 'Upload failed', 'error');
+      setDriveProgress(null);
       if (e.status === 401) { clearSession(); location.reload(); }
     } finally {
       if (els.commitBtn) els.commitBtn.disabled = !selected || !pending.length;
-      if (els.uploadProgress) setTimeout(() => els.uploadProgress.classList.add('hidden'), 3000);
       updateDrivePendingBar();
     }
   }
@@ -1060,13 +1135,18 @@
 
   async function previewFile(path) {
     if (!selected) return;
-    const branch = els.branchSelect?.value || selected.default_branch || 'main';
+    if (!els.previewModal || !els.previewContent) {
+      toast('Preview UI missing', 'error');
+      return;
+    }
+    const branch = (els.branchSelect && els.branchSelect.value) || selected.default_branch || 'main';
     currentPreviewFile = path;
     currentPreviewData = null;
     revokePreviewUrl();
-    els.previewTitle.textContent = path;
+    try { pushRecent(path); } catch {}
+    if (els.previewTitle) els.previewTitle.textContent = path.split('/').pop() || path;
     els.previewContent.innerHTML = '<div class="preview-loading"><span class="mix-spinner"></span> Loading…</div>';
-    els.previewModal.showModal();
+    try { els.previewModal.showModal(); } catch (e) { toast('Could not open preview', 'error'); return; }
 
     try {
       const apiPath = String(path).split('/').map(encodeURIComponent).join('/');
@@ -1485,6 +1565,292 @@ jobs:
     }
   }
 
+
+  // ---------- P0: git tree helpers ----------
+  async function getBranchHead(branch) {
+    const owner = selected.owner, repo = selected.name;
+    const ref = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/ref/heads/${encodeURIComponent(branch)}`);
+    const head = ref.object.sha;
+    const parent = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/commits/${head}`);
+    return { owner, repo, branch, head, parent };
+  }
+
+  async function commitTreeChanges(tree, message) {
+    const branch = (document.getElementById('driveBranchSelect')?.value)
+      || (els.branchSelect && els.branchSelect.value)
+      || selected.default_branch || 'main';
+    const { owner, repo, head, parent } = await getBranchHead(branch);
+    const newTree = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ base_tree: parent.tree.sha, tree })
+    });
+    const commit = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/commits`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message, tree: newTree.sha, parents: [head] })
+    });
+    const upd = await fetch(`${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/refs/heads/${encodeURIComponent(branch)}`, {
+      method: 'PATCH',
+      headers: {
+        Accept: 'application/vnd.github+json',
+        Authorization: `Bearer ${token}`,
+        'X-GitHub-Api-Version': API_VERSION,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ sha: commit.sha, force: false })
+    });
+    const d = await upd.json();
+    if (!upd.ok) throw new Error(d?.message || 'Branch update failed');
+    return commit;
+  }
+
+  function currentBranch() {
+    return (document.getElementById('driveBranchSelect')?.value)
+      || (els.branchSelect && els.branchSelect.value)
+      || selected?.default_branch || 'main';
+  }
+
+  async function createFolder() {
+    if (!selected) return toast('Select a repository first.', 'error');
+    const name = prompt('New folder name:');
+    if (!name) return;
+    const safe = name.trim().replace(/[\\/:*?"<>|]/g, '-').replace(/^\.+/, '');
+    if (!safe) return toast('Invalid folder name.', 'error');
+    const base = drivePath ? drivePath.replace(/\/$/, '') + '/' : '';
+    const keepPath = base + safe + '/.gitkeep';
+    if (treeEntries.some(x => x.path === keepPath || x.path.startsWith(base + safe + '/'))) {
+      return toast('Folder already exists.', 'error');
+    }
+    try {
+      setDriveProgress(30, 'Creating folder…');
+      // empty file as .gitkeep
+      const content = btoa('');
+      const blob = await api(`/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/git/blobs`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, encoding: 'base64' })
+      });
+      await commitTreeChanges(
+        [{ path: keepPath, mode: '100644', type: 'blob', sha: blob.sha }],
+        `Create folder ${safe} via RepoDrive`
+      );
+      setDriveProgress(100, 'Done');
+      toast(`Folder “${safe}” created`, 'good');
+      await loadTree();
+      setTimeout(() => setDriveProgress(null), 600);
+    } catch (e) {
+      setDriveProgress(null);
+      toast(e.message || 'Could not create folder', 'error');
+    }
+  }
+
+  async function renamePath(oldPath, isFolder) {
+    if (!selected) return;
+    const oldName = oldPath.split('/').pop();
+    const next = prompt(isFolder ? 'Rename folder:' : 'Rename file:', oldName);
+    if (!next || next === oldName) return;
+    const safe = next.trim().replace(/[\\/:*?"<>|]/g, '-');
+    if (!safe) return toast('Invalid name.', 'error');
+    const parent = oldPath.includes('/') ? oldPath.slice(0, oldPath.lastIndexOf('/')) : '';
+    const newPath = parent ? parent + '/' + safe : safe;
+    try {
+      setDriveProgress(20, 'Renaming…');
+      const tree = [];
+      if (isFolder) {
+        const prefix = oldPath.replace(/\/$/, '') + '/';
+        const items = treeEntries.filter(x => x.path === oldPath || x.path.startsWith(prefix));
+        // folders are virtual; only blobs exist
+        const blobs = treeEntries.filter(x => x.path.startsWith(prefix) || x.path === oldPath + '/.gitkeep');
+        for (const item of blobs) {
+          const rel = item.path.startsWith(prefix) ? item.path.slice(prefix.length) : item.path.split('/').pop();
+          const dest = newPath + '/' + rel;
+          tree.push({ path: item.path, mode: '100644', type: 'blob', sha: null });
+          tree.push({ path: dest, mode: '100644', type: 'blob', sha: item.sha });
+        }
+      } else {
+        const item = treeEntries.find(x => x.path === oldPath);
+        if (!item) throw new Error('File not found in tree');
+        tree.push({ path: oldPath, mode: '100644', type: 'blob', sha: null });
+        tree.push({ path: newPath, mode: '100644', type: 'blob', sha: item.sha });
+      }
+      if (!tree.length) throw new Error('Nothing to rename');
+      await commitTreeChanges(tree, `Rename ${oldName} → ${safe} via RepoDrive`);
+      setDriveProgress(100, 'Done');
+      toast('Renamed.', 'good');
+      await loadTree();
+      setTimeout(() => setDriveProgress(null), 600);
+    } catch (e) {
+      setDriveProgress(null);
+      toast(e.message || 'Rename failed', 'error');
+    }
+  }
+
+  async function trashPaths(paths) {
+    if (!selected || !paths.length) return;
+    try {
+      setDriveProgress(15, 'Moving to trash…');
+      const tree = [];
+      const stamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      for (const path of paths) {
+        // expand folders
+        const prefix = path.replace(/\/$/, '') + '/';
+        const blobs = treeEntries.filter(x => x.path === path || x.path.startsWith(prefix));
+        if (!blobs.length && treeEntries.some(x => x.path === path)) {
+          blobs.push(treeEntries.find(x => x.path === path));
+        }
+        // if path is folder virtual, collect children
+        const children = treeEntries.filter(x => x.path === path || x.path.startsWith(prefix));
+        const list = children.length ? children : treeEntries.filter(x => x.path === path);
+        for (const item of list) {
+          const dest = `${TRASH_ROOT}/${stamp}/${item.path}`;
+          tree.push({ path: item.path, mode: '100644', type: 'blob', sha: null });
+          tree.push({ path: dest, mode: '100644', type: 'blob', sha: item.sha });
+        }
+      }
+      if (!tree.length) throw new Error('Nothing to trash');
+      await commitTreeChanges(tree, `Trash ${paths.length} item(s) via RepoDrive`);
+      selectedTree.clear();
+      setDriveProgress(100, 'Done');
+      toast('Moved to Trash', 'good');
+      await loadTree();
+      setTimeout(() => setDriveProgress(null), 600);
+    } catch (e) {
+      setDriveProgress(null);
+      toast(e.message || 'Trash failed', 'error');
+    }
+  }
+
+  async function restoreFromTrash(paths) {
+    if (!selected || !paths.length) return;
+    try {
+      setDriveProgress(20, 'Restoring…');
+      const tree = [];
+      for (const path of paths) {
+        const item = treeEntries.find(x => x.path === path);
+        if (!item) continue;
+        // .trash/TIMESTAMP/original/path
+        const parts = path.split('/');
+        if (parts[0] !== TRASH_ROOT || parts.length < 3) continue;
+        const original = parts.slice(2).join('/');
+        tree.push({ path, mode: '100644', type: 'blob', sha: null });
+        tree.push({ path: original, mode: '100644', type: 'blob', sha: item.sha });
+      }
+      if (!tree.length) throw new Error('Nothing to restore');
+      await commitTreeChanges(tree, `Restore from trash via RepoDrive`);
+      selectedTree.clear();
+      setDriveProgress(100, 'Done');
+      toast('Restored.', 'good');
+      await loadTree();
+      setTimeout(() => setDriveProgress(null), 600);
+    } catch (e) {
+      setDriveProgress(null);
+      toast(e.message || 'Restore failed', 'error');
+    }
+  }
+
+  async function downloadPaths(paths) {
+    if (!selected || !paths.length) return;
+    const branch = currentBranch();
+    for (const path of paths) {
+      try {
+        const apiPath = String(path).split('/').map(encodeURIComponent).join('/');
+        const data = await api(`/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/contents/${apiPath}?ref=${encodeURIComponent(branch)}`);
+        if (Array.isArray(data)) {
+          toast(`“${path.split('/').pop()}” is a folder — open it and download files.`, '');
+          continue;
+        }
+        const blob = await getPreviewBlob(data, previewMime(path));
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = path.split('/').pop() || 'download';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1500);
+      } catch (e) {
+        toast(e.message || `Download failed: ${path}`, 'error');
+      }
+    }
+    if (paths.length === 1) toast('Download started', 'good');
+    else toast(`Started ${paths.length} downloads`, 'good');
+  }
+
+  async function downloadRepoZip() {
+    if (!selected) return;
+    const branch = currentBranch();
+    try {
+      toast('Preparing ZIP…', '');
+      const res = await fetch(
+        `${API}/repos/${encodeURIComponent(selected.owner)}/${encodeURIComponent(selected.name)}/zipball/${encodeURIComponent(branch)}`,
+        { headers: { Authorization: `Bearer ${token}`, Accept: 'application/vnd.github+json', 'X-GitHub-Api-Version': API_VERSION } }
+      );
+      if (!res.ok) throw new Error(`ZIP failed (${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${selected.name}-${branch}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      toast('ZIP download started', 'good');
+    } catch (e) {
+      toast(e.message || 'ZIP download failed', 'error');
+    }
+  }
+
+  function showFavoritesPanel() {
+    const favs = Object.values(favorites || {}).filter(f => !selected || f.repo === selected.full_name);
+    if (!favs.length) return toast('No favorites yet. Star a file to add one.', '');
+    // Navigate isn't global — list via toast + open first? Better: filter grid overlay
+    const paths = new Set(favs.map(f => f.path));
+    // Soft filter: show only favorites in current repo by temporarily setting search won't work for nested
+    toast(`${favs.length} favorite(s). Opening list…`, '');
+    const lines = favs.slice(0, 12).map(f => f.path).join('\n');
+    const pick = prompt(`Favorites (enter path to open):\n\n${lines}\n`, favs[0].path);
+    if (pick) {
+      const parent = pick.includes('/') ? pick.slice(0, pick.lastIndexOf('/')) : '';
+      drivePath = parent;
+      renderDriveFiles();
+      previewFile(pick);
+    }
+  }
+
+  function showRecentsPanel() {
+    const list = loadRecents().filter(r => !selected || r.repo === selected.full_name);
+    if (!list.length) return toast('No recent files yet.', '');
+    const lines = list.slice(0, 12).map(r => r.path).join('\n');
+    const pick = prompt(`Recent files (enter path to open):\n\n${lines}\n`, list[0].path);
+    if (pick) {
+      const parent = pick.includes('/') ? pick.slice(0, pick.lastIndexOf('/')) : '';
+      drivePath = parent;
+      renderDriveFiles();
+      previewFile(pick);
+    }
+  }
+
+  function openTrash() {
+    if (!selected) return toast('Select a repository first.', 'error');
+    driveHistory.push(drivePath);
+    drivePath = TRASH_ROOT;
+    renderDriveFiles();
+    toast('Trash — select files and use Restore from ⋮ or long-press', '');
+  }
+
+  function updateDriveBulkBar() {
+    const bar = document.getElementById('driveBulkBar');
+    const count = document.getElementById('driveBulkCount');
+    if (!bar) return;
+    const n = selectedTree.size;
+    if (!n) { bar.classList.add('hidden'); return; }
+    bar.classList.remove('hidden');
+    if (count) count.textContent = `${n} selected`;
+  }
+
+
   // Render Tree
   // Mixplorer-inspired cloud explorer -------------------------------------------------
   function driveFileIcon(path, isFolder = false) {
@@ -1510,13 +1876,29 @@ jobs:
 
   function driveFolderData() {
     const prefix = drivePath ? drivePath.replace(/\/$/, '') + '/' : '';
+    const inTrash = drivePath === TRASH_ROOT || drivePath.startsWith(TRASH_ROOT + '/');
     const folders = new Map();
     const files = [];
     for (const item of treeEntries) {
-      if (!showHiddenFiles && item.path.split('/').some(part => part.startsWith('.'))) continue;
+      // Hide dotfiles/folders except when browsing Trash
+      if (!showHiddenFiles && !inTrash) {
+        const partsAll = item.path.split('/');
+        if (partsAll.some(part => part.startsWith('.') && part !== TRASH_ROOT)) continue;
+        // Hide .trash contents from normal browse; show Trash as virtual folder at root
+        if (item.path === TRASH_ROOT || item.path.startsWith(TRASH_ROOT + '/')) {
+          if (!prefix) {
+            if (!folders.has(TRASH_ROOT)) folders.set(TRASH_ROOT, { name: 'Trash', path: TRASH_ROOT, size: 0, files: 0 });
+            folders.get(TRASH_ROOT).size += item.size;
+            folders.get(TRASH_ROOT).files++;
+          }
+          continue;
+        }
+      }
       if (!item.path.startsWith(prefix)) continue;
       const rest = item.path.slice(prefix.length);
       if (!rest) continue;
+      // Hide .gitkeep from listings
+      if (rest === '.gitkeep' || rest.endsWith('/.gitkeep')) continue;
       const parts = rest.split('/');
       if (parts.length > 1) {
         const folder = parts[0];
@@ -1524,7 +1906,7 @@ jobs:
         const f = folders.get(folder); f.size += item.size; f.files++;
       } else files.push(item);
     }
-    return { folders:[...folders.values()], files };
+    return { folders: [...folders.values()], files };
   }
 
   function renderDriveRepos() {
@@ -1628,7 +2010,7 @@ jobs:
     paths.forEach(p => selectedTree.add(p));
     await mutateTree('delete');
     selectedTree.clear();
-    renderDriveFiles();
+    await loadTree();
   }
 
   async function deleteSingleFile(path) {
@@ -1638,7 +2020,105 @@ jobs:
     selectedTree.add(path);
     await mutateTree('delete');
     selectedTree.clear();
-    renderDriveFiles();
+    await loadTree();
+  }
+
+
+  function clipboardSet(mode) {
+    const paths = selectedTree.size ? [...selectedTree] : [];
+    if (!paths.length) {
+      toast('Select files first (checkbox or long-press is for delete).', 'error');
+      return;
+    }
+    fileClipboard = { mode, paths: paths.slice() };
+    toast(`${mode === 'cut' ? 'Cut' : 'Copied'} ${paths.length} item${paths.length === 1 ? '' : 's'}`, 'good');
+    updateClipboardBar();
+  }
+
+  function updateClipboardBar() {
+    const bar = document.getElementById('driveClipboardBar');
+    if (!bar) return;
+    if (!fileClipboard.mode || !fileClipboard.paths.length) {
+      bar.classList.add('hidden');
+      return;
+    }
+    bar.classList.remove('hidden');
+    const lab = bar.querySelector('.drive-clipboard-label');
+    if (lab) lab.textContent = `${fileClipboard.mode === 'cut' ? 'Cut' : 'Copied'}: ${fileClipboard.paths.length} item(s) — paste into current folder`;
+  }
+
+  async function clipboardPaste() {
+    if (!selected || !fileClipboard.mode || !fileClipboard.paths.length) {
+      toast('Clipboard is empty.', 'error');
+      return;
+    }
+    const branch = (els.branchSelect && els.branchSelect.value) || selected.default_branch || 'main';
+    const prefix = drivePath ? drivePath.replace(/\/$/, '') + '/' : '';
+    const mode = fileClipboard.mode;
+    const paths = fileClipboard.paths.slice();
+    setDriveProgress(5, mode === 'cut' ? 'Moving…' : 'Copying…');
+    try {
+      const owner = selected.owner, repo = selected.name;
+      const ref = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/ref/heads/${encodeURIComponent(branch)}`);
+      const head = ref.object.sha;
+      const parent = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/commits/${head}`);
+      const tree = [];
+      for (let i = 0; i < paths.length; i++) {
+        const path = paths[i];
+        const item = treeEntries.find(x => x.path === path);
+        if (!item) continue;
+        const name = path.split('/').pop();
+        const dest = prefix + name;
+        if (dest === path && mode === 'copy') continue;
+        setDriveProgress(10 + (i / paths.length) * 70, `${mode === 'cut' ? 'Moving' : 'Copying'} ${name}`);
+        tree.push({ path: dest, mode: '100644', type: 'blob', sha: item.sha });
+        if (mode === 'cut' && dest !== path) {
+          tree.push({ path, mode: '100644', type: 'blob', sha: null });
+        }
+      }
+      if (!tree.length) {
+        toast('Nothing to paste here.', '');
+        setDriveProgress(null);
+        return;
+      }
+      setDriveProgress(85, 'Committing…');
+      const newTree = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/trees`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base_tree: parent.tree.sha, tree })
+      });
+      const commit = await api(`/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/commits`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: `${mode === 'cut' ? 'Move' : 'Copy'} ${paths.length} file(s) via RepoDrive`,
+          tree: newTree.sha,
+          parents: [head]
+        })
+      });
+      const upd = await fetch(`${API}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/git/refs/heads/${encodeURIComponent(branch)}`, {
+        method: 'PATCH',
+        headers: {
+          Accept: 'application/vnd.github+json',
+          Authorization: `Bearer ${token}`,
+          'X-GitHub-Api-Version': API_VERSION,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ sha: commit.sha, force: false })
+      });
+      const d = await upd.json();
+      if (!upd.ok) throw new Error(d?.message || 'Paste failed');
+      if (mode === 'cut') fileClipboard = { mode: null, paths: [] };
+      selectedTree.clear();
+      updateClipboardBar();
+      setDriveProgress(100, 'Done');
+      toast(mode === 'cut' ? 'Moved.' : 'Copied.', 'good');
+      await loadTree();
+      setTimeout(() => setDriveProgress(null), 800);
+    } catch (e) {
+      toast(e.message || 'Paste failed', 'error');
+      setDriveProgress(null);
+    }
   }
 
   function renderDriveFiles() {
@@ -1678,31 +2158,56 @@ jobs:
     els.driveEmpty.classList.toggle('hidden', total !== 0);
     if (!total) return;
 
+    const inTrash = drivePath === TRASH_ROOT || drivePath.startsWith(TRASH_ROOT + '/');
     for (const folder of folders) {
       const item = document.createElement('article');
       item.className = 'drive-item folder';
       item.innerHTML = `
         <div class="drive-file-icon folder-icon">${driveFileIcon('', true)}</div>
         <div class="drive-item-name">${escapeHtml(folder.name)}</div>
-        <div class="drive-item-meta"><span>&lt;dir&gt;</span></div>`;
-      item.addEventListener('click', () => {
+        <div class="drive-item-meta"><span>&lt;dir&gt;</span></div>
+        <div class="drive-item-actions">
+          <button type="button" data-action="rename" title="Rename">✎</button>
+          <button type="button" data-action="trash" title="${inTrash ? 'Delete forever' : 'Trash'}">🗑</button>
+        </div>`;
+      item.addEventListener('click', (e) => {
+        if (e.target.closest('button')) return;
         driveHistory.push(drivePath);
         drivePath = folder.path;
         renderDriveFiles();
       });
+      item.querySelector('[data-action="rename"]')?.addEventListener('click', e => {
+        e.stopPropagation();
+        renamePath(folder.path, true);
+      });
+      item.querySelector('[data-action="trash"]')?.addEventListener('click', e => {
+        e.stopPropagation();
+        if (inTrash) {
+          if (confirm('Permanently delete this folder from trash?')) {
+            const prefix = folder.path.replace(/\/$/, '') + '/';
+            selectedTree.clear();
+            treeEntries.filter(x => x.path.startsWith(prefix)).forEach(x => selectedTree.add(x.path));
+            mutateTree('delete').then(() => loadTree());
+          }
+        } else {
+          trashPaths([folder.path]);
+        }
+      });
       bindLongPress(item, (e) => {
         e.preventDefault?.();
         e.stopPropagation?.();
-        deleteFolderContents(folder.path);
+        if (inTrash) return;
+        trashPaths([folder.path]);
       });
       els.driveFileGrid.appendChild(item);
     }
     for (const f of files) {
       const name = f.path.split('/').pop();
       const checked = selectedTree.has(f.path);
-      const ext = (getFileExtension(f.path) || 'FILE').toUpperCase();
+      const favKey = selected ? `${selected.owner}/${selected.name}/${f.path}` : f.path;
+      const isFav = !!(favorites && favorites[favKey]);
       const item = document.createElement('article');
-      item.className = `drive-item file-tile${checked ? ' selected' : ''}`;
+      item.className = `drive-item file-tile${checked ? ' selected' : ''}${isFav ? ' is-fav' : ''}`;
       item.innerHTML = `
         <input class="drive-item-check" type="checkbox" ${checked ? 'checked' : ''} aria-label="Select ${escapeHtml(name)}">
         <div class="drive-file-icon">${driveFileIcon(f.path)}</div>
@@ -1710,7 +2215,11 @@ jobs:
         <div class="drive-item-meta"><span>${fmt(f.size)}</span></div>
         <div class="drive-item-actions">
           <button type="button" data-action="preview" title="Preview">◉</button>
-          <button type="button" data-action="delete" title="Delete">🗑</button>
+          <button type="button" data-action="download" title="Download">↓</button>
+          <button type="button" data-action="rename" title="Rename">✎</button>
+          <button type="button" data-action="star" title="Favorite">${isFav ? '★' : '☆'}</button>
+          <button type="button" data-action="trash" title="${inTrash ? 'Delete forever' : 'Trash'}">🗑</button>
+          ${inTrash ? '<button type="button" data-action="restore" title="Restore">↩</button>' : ''}
         </div>`;
       const cb = item.querySelector('.drive-item-check');
       cb.addEventListener('click', e => e.stopPropagation());
@@ -1718,23 +2227,36 @@ jobs:
         cb.checked ? selectedTree.add(f.path) : selectedTree.delete(f.path);
         item.classList.toggle('selected', cb.checked);
         renderBulk();
+        updateDriveBulkBar();
       });
       item.addEventListener('click', e => {
         if (e.target.closest('button') || e.target.closest('input')) return;
         previewFile(f.path);
       });
-      item.querySelector('[data-action="preview"]').addEventListener('click', e => {
+      item.querySelector('[data-action="preview"]')?.addEventListener('click', e => { e.stopPropagation(); previewFile(f.path); });
+      item.querySelector('[data-action="download"]')?.addEventListener('click', e => { e.stopPropagation(); downloadPaths([f.path]); });
+      item.querySelector('[data-action="rename"]')?.addEventListener('click', e => { e.stopPropagation(); renamePath(f.path, false); });
+      item.querySelector('[data-action="star"]')?.addEventListener('click', e => { e.stopPropagation(); toggleFavorite(f.path); renderDriveFiles(); });
+      item.querySelector('[data-action="trash"]')?.addEventListener('click', e => {
         e.stopPropagation();
-        previewFile(f.path);
+        if (inTrash) {
+          if (confirm(`Permanently delete “${name}”?`)) {
+            selectedTree.clear(); selectedTree.add(f.path);
+            mutateTree('delete').then(() => loadTree());
+          }
+        } else {
+          trashPaths([f.path]);
+        }
       });
-      item.querySelector('[data-action="delete"]').addEventListener('click', e => {
+      item.querySelector('[data-action="restore"]')?.addEventListener('click', e => {
         e.stopPropagation();
-        deleteSingleFile(f.path);
+        restoreFromTrash([f.path]);
       });
       bindLongPress(item, (e) => {
         e.preventDefault?.();
         e.stopPropagation?.();
-        deleteSingleFile(f.path);
+        if (inTrash) restoreFromTrash([f.path]);
+        else trashPaths([f.path]);
       });
       els.driveFileGrid.appendChild(item);
     }
@@ -1802,6 +2324,7 @@ jobs:
   }
 
   function renderBulk() {
+    try { updateDriveBulkBar(); } catch {}
     const n = selectedTree.size;
     els.bulkBar.classList.toggle('hidden', n === 0);
     els.bulkCount.textContent = `${n} selected`;
@@ -2150,7 +2673,77 @@ jobs:
   });
   if (els.driveMore) els.driveMore.addEventListener('click', () => {
     if (!selected) return toast('Select a repository first.', 'error');
-    toast('Long-press a folder or file to delete. Upload commits into the current folder.', '');
+    const choice = prompt(
+      'Actions:\n1 = New folder\n2 = Download repo ZIP\n3 = Open Trash\n4 = Favorites\n5 = Recent\n\nEnter number:',
+      '1'
+    );
+    if (choice === '1') createFolder();
+    else if (choice === '2') downloadRepoZip();
+    else if (choice === '3') openTrash();
+    else if (choice === '4') showFavoritesPanel();
+    else if (choice === '5') showRecentsPanel();
+  });
+  function syncAutoSortBtn() {
+    const btn = document.getElementById('driveAutoSortBtn');
+    if (!btn) return;
+    btn.classList.toggle('active', !!autoSortEnabled);
+    btn.title = autoSortEnabled ? 'Auto-sort ON — uploads go into type folders' : 'Auto-sort OFF — uploads go into current folder';
+    btn.setAttribute('aria-pressed', autoSortEnabled ? 'true' : 'false');
+    const lab = btn.querySelector('.auto-sort-label');
+    if (lab) lab.textContent = autoSortEnabled ? 'Auto' : 'Manual';
+  }
+  document.getElementById('driveAutoSortBtn')?.addEventListener('click', () => {
+    autoSortEnabled = !autoSortEnabled;
+    localStorage.setItem('repodrive_auto_sort', autoSortEnabled ? '1' : '0');
+    syncAutoSortBtn();
+    toast(autoSortEnabled
+      ? 'Auto-sort ON — images→Images, audio→Audio, docs→Documents…'
+      : 'Auto-sort OFF — files stay in the current folder', 'good');
+  });
+  syncAutoSortBtn();
+
+  document.getElementById('driveCopyBtn')?.addEventListener('click', () => clipboardSet('copy'));
+  document.getElementById('driveCutBtn')?.addEventListener('click', () => clipboardSet('cut'));
+  document.getElementById('drivePasteBtn')?.addEventListener('click', () => clipboardPaste());
+  document.getElementById('driveTrashBtn')?.addEventListener('click', async () => {
+    if (!selectedTree.size) return toast('Select files to trash.', 'error');
+    if (!confirm(`Move ${selectedTree.size} item(s) to Trash?`)) return;
+    await trashPaths([...selectedTree]);
+  });
+  document.getElementById('driveDeleteBtn')?.addEventListener('click', async () => {
+    if (!selectedTree.size) return toast('Select files to delete.', 'error');
+    // Prefer trash
+    if (!confirm(`Move ${selectedTree.size} item(s) to Trash?`)) return;
+    await trashPaths([...selectedTree]);
+  });
+  document.getElementById('driveNewFolderBtn')?.addEventListener('click', () => createFolder());
+  document.getElementById('driveDownloadBtn')?.addEventListener('click', () => {
+    if (selectedTree.size) downloadPaths([...selectedTree]);
+    else downloadRepoZip();
+  });
+  document.getElementById('driveFavBtn')?.addEventListener('click', () => showFavoritesPanel());
+  document.getElementById('driveRecentBtn')?.addEventListener('click', () => showRecentsPanel());
+  document.getElementById('driveQuickRecent')?.addEventListener('click', () => showRecentsPanel());
+  document.getElementById('driveQuickFav')?.addEventListener('click', () => showFavoritesPanel());
+  document.getElementById('driveQuickTrash')?.addEventListener('click', () => openTrash());
+  document.getElementById('driveBranchSelect')?.addEventListener('change', async (e) => {
+    if (els.branchSelect) els.branchSelect.value = e.target.value;
+    drivePath = '';
+    driveHistory = [];
+    await loadTree();
+  });
+  document.getElementById('driveBulkDownload')?.addEventListener('click', () => downloadPaths([...selectedTree]));
+  document.getElementById('driveBulkCopy')?.addEventListener('click', () => clipboardSet('copy'));
+  document.getElementById('driveBulkCut')?.addEventListener('click', () => clipboardSet('cut'));
+  document.getElementById('driveBulkTrash')?.addEventListener('click', async () => {
+    if (!selectedTree.size) return;
+    if (!confirm(`Trash ${selectedTree.size} item(s)?`)) return;
+    await trashPaths([...selectedTree]);
+  });
+  document.getElementById('driveBulkClear')?.addEventListener('click', () => {
+    selectedTree.clear();
+    renderDriveFiles();
+    updateDriveBulkBar();
   });
   if (els.driveDropZone) {
     ['dragenter', 'dragover'].forEach(t => els.driveDropZone.addEventListener(t, e => { e.preventDefault(); els.driveDropZone.classList.add('drag'); }));

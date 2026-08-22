@@ -3608,3 +3608,151 @@ html[data-theme="light"] .drive-item-name { color: #343436; }
     font-size: 11px !important;
   }
 }
+
+/* Upload progress bar */
+.drive-upload-progress {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--border, #1b3537);
+  background: rgba(20, 40, 42, 0.95);
+  flex-shrink: 0;
+}
+.drive-upload-progress.hidden { display: none !important; }
+.drive-progress-track {
+  flex: 1;
+  height: 8px;
+  border-radius: 99px;
+  background: #122022;
+  overflow: hidden;
+  border: 1px solid #2a4040;
+}
+.drive-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #1e5050, #3db8b0);
+  transition: width 0.2s ease;
+  border-radius: 99px;
+}
+#driveProgressLabel {
+  font-size: 11px;
+  color: var(--text-secondary, #93a6a5);
+  min-width: 120px;
+  text-align: right;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.drive-clipboard-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 14px;
+  border-top: 1px solid #2a5050;
+  background: rgba(30, 70, 72, 0.35);
+  flex-shrink: 0;
+}
+.drive-clipboard-bar.hidden { display: none !important; }
+.drive-clipboard-label {
+  font-size: 12px;
+  color: #9fd0cc;
+}
+
+/* Force name visibility even if older rules hide them */
+#appView:not(.hidden) .drive-item .drive-item-name,
+.drive-item .drive-item-name {
+  visibility: visible !important;
+  opacity: 1 !important;
+  height: auto !important;
+  max-height: none !important;
+  font-size: 12px !important;
+  color: #5ec8c0 !important;
+}
+
+/* Sort select visible */
+#driveSort {
+  display: inline-block !important;
+  min-width: 90px;
+  font-size: 12px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid #2a4040;
+  background: #0e1819;
+  color: #eef3f2;
+}
+
+/* Auto-sort toggle */
+#driveAutoSortBtn {
+  min-width: 44px;
+  font-size: 11px !important;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: #7a8f8e !important;
+}
+#driveAutoSortBtn.active {
+  color: #5ec8c0 !important;
+  border-color: #3a6a68 !important;
+  background: rgba(30, 80, 80, 0.35) !important;
+}
+#driveAutoSortBtn .auto-sort-label {
+  font-size: 11px;
+}
+
+/* P0: branch select, bulk bar, quick links */
+.drive-branch-select {
+  max-width: 110px;
+  height: 32px;
+  padding: 0 8px;
+  border-radius: 6px;
+  border: 1px solid #2a4040;
+  background: #0e1819;
+  color: #eef3f2;
+  font-size: 12px;
+}
+.drive-bulk-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #1d2d2e;
+  background: rgba(30, 80, 80, 0.2);
+}
+.drive-bulk-bar.hidden { display: none !important; }
+#driveBulkCount {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9fd0cc;
+  margin-right: 6px;
+}
+.drive-quick-section {
+  padding: 6px 8px 10px;
+  border-bottom: 1px solid #1d2d2e;
+}
+.drive-quick-item {
+  display: flex;
+  width: 100%;
+  text-align: left;
+  gap: 8px;
+  padding: 8px 10px;
+  margin: 2px 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #c5d4d3;
+  font-size: 13px;
+  cursor: pointer;
+}
+.drive-quick-item:hover {
+  background: rgba(48, 80, 88, 0.4);
+  color: #fff;
+}
+.drive-item.is-fav .drive-item-name::after {
+  content: " ★";
+  color: #e6c35c;
+  font-size: 10px;
+}
+#driveNewFolderBtn { font-size: 12px; }
