@@ -474,11 +474,11 @@
       els.account.textContent = `@${me.login}`;
       if (els.driveUserName) els.driveUserName.textContent = me.login;
       if (els.driveAvatar) els.driveAvatar.textContent = (me.login || '?').slice(0,1).toUpperCase();
-      els.logoutBtn.classList.remove('hidden');
-      els.refreshBtn.classList.remove('hidden');
+      if (els.logoutBtn) els.logoutBtn.classList.remove('hidden');
+      if (els.refreshBtn) els.refreshBtn.classList.remove('hidden');
       els.loginView.classList.add('hidden');
       els.appView.classList.remove('hidden');
-      els.workspaceTitle.textContent = `${me.login}'s GitHub workspace`;
+      if (els.workspaceTitle) els.workspaceTitle.textContent = `${me.login}'s GitHub workspace`;
       await loadRepos();
       initTheme();
     } catch (e) {
@@ -486,8 +486,8 @@
       clearSession();
       els.appView.classList.add('hidden');
       els.loginView.classList.remove('hidden');
-      els.logoutBtn.classList.add('hidden');
-      els.refreshBtn.classList.add('hidden');
+      if (els.logoutBtn) els.logoutBtn.classList.add('hidden');
+      if (els.refreshBtn) els.refreshBtn.classList.add('hidden');
     }
   }
 
@@ -1825,143 +1825,129 @@ jobs:
     } catch { toast('Copy failed.', 'error'); }
   });
   els.logoutBtn.addEventListener('click', () => { clearSession(true); location.reload(); });
-  els.refreshBtn.addEventListener('click', loadRepos);
-  els.installBtn.addEventListener('click', () => window.open(installUrl(), '_blank', 'noopener'));
-  els.reloadReposBtn.addEventListener('click', loadRepos);
-  els.repoSearch.addEventListener('input', renderRepos);
-  els.repoSort.addEventListener('change', renderRepos);
-  els.newRepoBtn.addEventListener('click', () => { els.repoCreateStatus.textContent = ''; els.repoDialog.showModal(); });
-  els.cancelRepo.addEventListener('click', () => els.repoDialog.close());
-  els.createRepo.addEventListener('click', createRepo);
-  els.changeRepoBtn.addEventListener('click', () => { els.workspace.classList.add('hidden'); window.scrollTo({ top: document.querySelector('.repo-card').offsetTop - 80, behavior: 'smooth' }); });
-  els.shareRepoBtn.addEventListener('click', () => shareFile(''));
-  els.watchRepoBtn.addEventListener('click', toggleWatch);
-  els.branchSelect.addEventListener('change', () => { renderPending(); loadTree(); });
-  els.prefix.addEventListener('input', () => { pending = pending.map(x => ({ ...x, destPath: buildPath(x.sourcePath) })); renderPending(); });
-  els.pickFiles.addEventListener('click', () => els.filePicker.click());
-  els.pickFolder.addEventListener('click', () => els.folderPicker.click());
-  els.filePicker.addEventListener('change', e => addPending(e.target.files));
-  els.folderPicker.addEventListener('change', e => addPending(e.target.files));
-  els.clearSelection.addEventListener('click', () => { pending = []; els.filePicker.value = ''; els.folderPicker.value = ''; renderPending(); });
-  els.exportPending.addEventListener('click', exportPendingList);
+  if (els.refreshBtn) els.refreshBtn.addEventListener('click', loadRepos);
+  if (els.installBtn) els.installBtn.addEventListener('click', () => window.open(installUrl(), '_blank', 'noopener'));
+  if (els.reloadReposBtn) els.reloadReposBtn.addEventListener('click', loadRepos);
+  if (els.repoSearch) els.repoSearch.addEventListener('input', renderRepos);
+  if (els.repoSort) els.repoSort.addEventListener('change', renderRepos);
+  if (els.newRepoBtn) els.newRepoBtn.addEventListener('click', () => { if (els.repoCreateStatus) els.repoCreateStatus.textContent = ''; els.repoDialog?.showModal(); });
+  if (els.cancelRepo) els.cancelRepo.addEventListener('click', () => els.repoDialog?.close());
+  if (els.createRepo) els.createRepo.addEventListener('click', createRepo);
+  if (els.changeRepoBtn) els.changeRepoBtn.addEventListener('click', () => { els.workspace?.classList.add('hidden'); });
+  if (els.shareRepoBtn) els.shareRepoBtn.addEventListener('click', () => shareFile(''));
+  if (els.watchRepoBtn) els.watchRepoBtn.addEventListener('click', toggleWatch);
+  if (els.branchSelect) els.branchSelect.addEventListener('change', () => { renderPending(); loadTree(); });
+  if (els.prefix) els.prefix.addEventListener('input', () => { pending = pending.map(x => ({ ...x, destPath: buildPath(x.sourcePath) })); renderPending(); });
+  if (els.pickFiles) els.pickFiles.addEventListener('click', () => els.filePicker?.click());
+  if (els.pickFolder) els.pickFolder.addEventListener('click', () => els.folderPicker?.click());
+  if (els.filePicker) els.filePicker.addEventListener('change', e => addPending(e.target.files));
+  if (els.folderPicker) els.folderPicker.addEventListener('change', e => addPending(e.target.files));
+  if (els.clearSelection) els.clearSelection.addEventListener('click', () => { pending = []; if (els.filePicker) els.filePicker.value = ''; if (els.folderPicker) els.folderPicker.value = ''; renderPending(); });
+  if (els.exportPending) els.exportPending.addEventListener('click', exportPendingList);
   
-  ['dragenter', 'dragover'].forEach(t => els.dropZone.addEventListener(t, e => { e.preventDefault(); els.dropZone.classList.add('drag'); }));
-  ['dragleave', 'drop'].forEach(t => els.dropZone.addEventListener(t, e => { e.preventDefault(); els.dropZone.classList.remove('drag'); }));
-  els.dropZone.addEventListener('drop', e => addPending(e.dataTransfer.files));
-  els.commitBtn.addEventListener('click', publish);
-  els.fileSearch.addEventListener('input', renderTree);
-  els.refreshTreeBtn.addEventListener('click', loadTree);
-  els.showHidden.addEventListener('click', () => { showHiddenFiles = !showHiddenFiles; renderTree(); });
-  els.bulkDelete.addEventListener('click', () => { if (confirm(`Delete ${selectedTree.size} selected file(s)? This creates one commit.`)) mutateTree('delete'); });
-  els.bulkMove.addEventListener('click', () => mutateTree('move'));
-  els.bulkDownload.addEventListener('click', () => {
+  if (els.dropZone) {
+    ['dragenter', 'dragover'].forEach(t => els.dropZone.addEventListener(t, e => { e.preventDefault(); els.dropZone.classList.add('drag'); }));
+    ['dragleave', 'drop'].forEach(t => els.dropZone.addEventListener(t, e => { e.preventDefault(); els.dropZone.classList.remove('drag'); }));
+    els.dropZone.addEventListener('drop', e => addPending(e.dataTransfer.files));
+  }
+  if (els.commitBtn) els.commitBtn.addEventListener('click', publish);
+  if (els.fileSearch) els.fileSearch.addEventListener('input', renderTree);
+  if (els.refreshTreeBtn) els.refreshTreeBtn.addEventListener('click', loadTree);
+  if (els.showHidden) els.showHidden.addEventListener('click', () => { showHiddenFiles = !showHiddenFiles; renderTree(); });
+  if (els.bulkDelete) els.bulkDelete.addEventListener('click', () => { if (confirm(`Delete ${selectedTree.size} selected file(s)? This creates one commit.`)) mutateTree('delete'); });
+  if (els.bulkMove) els.bulkMove.addEventListener('click', () => mutateTree('move'));
+  if (els.bulkDownload) els.bulkDownload.addEventListener('click', () => {
     if (!selectedTree.size) return;
     const files = [...selectedTree].map(path => 
-      `https://raw.githubusercontent.com/${selected.owner}/${selected.name}/${els.branchSelect.value}/${path}`
+      `https://raw.githubusercontent.com/${selected.owner}/${selected.name}/${els.branchSelect?.value}/${path}`
     );
     for (const url of files) window.open(url, '_blank');
     toast(`Opening ${files.length} file(s)...`, '');
   });
-  els.bulkShare.addEventListener('click', () => {
+  if (els.bulkShare) els.bulkShare.addEventListener('click', () => {
     if (!selectedTree.size) return;
     const paths = [...selectedTree];
-    if (paths.length === 1) {
-      shareFile(paths[0]);
-    } else {
-      toast('Select a single file to share.', 'error');
-    }
+    if (paths.length === 1) shareFile(paths[0]);
+    else toast('Select a single file to share.', 'error');
   });
   
-  els.rulesBtn.addEventListener('click', () => { renderRules(); els.rulesDialog.showModal(); });
-  els.suggestRulesBtn.addEventListener('click', suggestRules);
-  els.closeRules.addEventListener('click', () => els.rulesDialog.close());
-  els.resetRules.addEventListener('click', () => { rules = DEFAULT_RULES.slice(); saveRules(); toast('Rules reset to defaults.', 'good'); });
-  els.addRule.addEventListener('click', () => {
-    const pattern = els.rulePattern.value.trim(), folder = els.ruleFolder.value.trim();
+  if (els.rulesBtn) els.rulesBtn.addEventListener('click', () => { renderRules(); els.rulesDialog?.showModal(); });
+  if (els.suggestRulesBtn) els.suggestRulesBtn.addEventListener('click', suggestRules);
+  if (els.closeRules) els.closeRules.addEventListener('click', () => els.rulesDialog?.close());
+  if (els.resetRules) els.resetRules.addEventListener('click', () => { rules = DEFAULT_RULES.slice(); saveRules(); toast('Rules reset to defaults.', 'good'); });
+  if (els.addRule) els.addRule.addEventListener('click', () => {
+    const pattern = els.rulePattern?.value.trim(), folder = els.ruleFolder?.value.trim();
     if (!pattern || !folder) { toast('Please enter both pattern and folder.', 'error'); return; }
     rules.push({ pattern, folder: folder.replace(/[\\/:*?"<>|]/g, '-') });
-    els.rulePattern.value = '';
-    els.ruleFolder.value = '';
+    if (els.rulePattern) els.rulePattern.value = '';
+    if (els.ruleFolder) els.ruleFolder.value = '';
     saveRules();
   });
   
-  els.themeToggle.addEventListener('click', toggleTheme);
-  els.globalSearch.addEventListener('keydown', e => { if (e.key === 'Enter') globalSearch(e.target.value); });
-  els.globalSearchBtn.addEventListener('click', () => {
-    els.globalSearchBar.classList.toggle('hidden');
-    if (!els.globalSearchBar.classList.contains('hidden')) els.globalSearch.focus();
+  if (els.themeToggle) els.themeToggle.addEventListener('click', toggleTheme);
+  if (els.globalSearch) els.globalSearch.addEventListener('keydown', e => { if (e.key === 'Enter') globalSearch(e.target.value); });
+  if (els.globalSearchBtn) els.globalSearchBtn.addEventListener('click', () => {
+    els.globalSearchBar?.classList.toggle('hidden');
+    if (els.globalSearchBar && !els.globalSearchBar.classList.contains('hidden')) els.globalSearch?.focus();
   });
-  els.globalSearchExecute.addEventListener('click', () => globalSearch(els.globalSearch.value));
+  if (els.globalSearchExecute) els.globalSearchExecute.addEventListener('click', () => globalSearch(els.globalSearch?.value));
   
-  els.viewToggle.addEventListener('click', () => {
+  if (els.viewToggle) els.viewToggle.addEventListener('click', () => {
     viewMode = viewMode === 'list' ? 'grid' : 'list';
-    viewMode === 'grid' ? renderTree() : renderTree();
+    renderTree();
     els.viewToggle.textContent = viewMode === 'list' ? 'Grid View' : 'List View';
   });
-  els.showFavorites.addEventListener('click', renderFavorites);
-  els.showRecent.addEventListener('click', () => {
+  if (els.showFavorites) els.showFavorites.addEventListener('click', renderFavorites);
+  if (els.showRecent) els.showRecent.addEventListener('click', () => {
     const sorted = [...treeEntries].sort((a, b) => b.size - a.size).slice(0, 20);
-    els.searchResultsList.innerHTML = sorted.map(x => `
+    if (els.searchResultsList) els.searchResultsList.innerHTML = sorted.map(x => `
       <div class="search-result" onclick="previewFile('${x.path}')">
         <strong>${escapeHtml(x.path)}</strong>
         <span style="font-size:12px;color:var(--text-secondary);">${fmt(x.size)}</span>
       </div>
     `).join('');
-    els.searchResultsModal.showModal();
+    els.searchResultsModal?.showModal();
   });
   
   // Preview modal events
-  els.closePreview.addEventListener('click', closePreview);
-  els.closePreviewBtn.addEventListener('click', closePreview);
-  els.previewModal.addEventListener('cancel', e => { e.preventDefault(); closePreview(); });
-  els.previewModal.addEventListener('click', e => { if (e.target === els.previewModal) closePreview(); });
-  els.previewModal.addEventListener('close', revokePreviewUrl);
-  els.downloadPreview.addEventListener('click', downloadPreviewFile);
-  els.sharePreview.addEventListener('click', () => {
-    if (currentPreviewFile) shareFile(currentPreviewFile);
-  });
-  els.historyPreview.addEventListener('click', () => {
-    if (currentPreviewFile) showFileHistory(currentPreviewFile);
-  });
+  if (els.closePreview) els.closePreview.addEventListener('click', closePreview);
+  if (els.closePreviewBtn) els.closePreviewBtn.addEventListener('click', closePreview);
+  if (els.previewModal) {
+    els.previewModal.addEventListener('cancel', e => { e.preventDefault(); closePreview(); });
+    els.previewModal.addEventListener('click', e => { if (e.target === els.previewModal) closePreview(); });
+    els.previewModal.addEventListener('close', revokePreviewUrl);
+  }
+  if (els.downloadPreview) els.downloadPreview.addEventListener('click', downloadPreviewFile);
+  if (els.sharePreview) els.sharePreview.addEventListener('click', () => { if (currentPreviewFile) shareFile(currentPreviewFile); });
+  if (els.historyPreview) els.historyPreview.addEventListener('click', () => { if (currentPreviewFile) showFileHistory(currentPreviewFile); });
   
-  // Search results modal
-  els.closeSearchResults.addEventListener('click', () => els.searchResultsModal.close());
+  if (els.closeSearchResults) els.closeSearchResults.addEventListener('click', () => els.searchResultsModal?.close());
+  if (els.closeHistory) els.closeHistory.addEventListener('click', () => els.historyModal?.close());
   
-  // History modal
-  els.closeHistory.addEventListener('click', () => els.historyModal.close());
-  
-  // Share modal
-  els.closeShare.addEventListener('click', () => els.shareModal.close());
-  els.closeShareBtn.addEventListener('click', () => els.shareModal.close());
-  els.copyShareLink.addEventListener('click', async () => {
-    const url = els.shareContent.querySelector('code')?.textContent;
+  if (els.closeShare) els.closeShare.addEventListener('click', () => els.shareModal?.close());
+  if (els.closeShareBtn) els.closeShareBtn.addEventListener('click', () => els.shareModal?.close());
+  if (els.copyShareLink) els.copyShareLink.addEventListener('click', async () => {
+    const url = els.shareContent?.querySelector('code')?.textContent;
     if (url) {
-      try {
-        await navigator.clipboard.writeText(url);
-        toast('Link copied!', 'good');
-      } catch { toast('Copy failed.', 'error'); }
+      try { await navigator.clipboard.writeText(url); toast('Link copied!', 'good'); }
+      catch { toast('Copy failed.', 'error'); }
     }
   });
   
-  // WebDAV modal
-  els.closeWebdav.addEventListener('click', () => els.webdavModal.close());
-  els.closeWebdavBtn.addEventListener('click', () => els.webdavModal.close());
-  els.copyWebdavUrl.addEventListener('click', async () => {
-    try {
-      await navigator.clipboard.writeText(els.webdavUrl.textContent);
-      toast('URL copied!', 'good');
-    } catch { toast('Copy failed.', 'error'); }
+  if (els.closeWebdav) els.closeWebdav.addEventListener('click', () => els.webdavModal?.close());
+  if (els.closeWebdavBtn) els.closeWebdavBtn.addEventListener('click', () => els.webdavModal?.close());
+  if (els.copyWebdavUrl) els.copyWebdavUrl.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(els.webdavUrl?.textContent || ''); toast('URL copied!', 'good'); }
+    catch { toast('Copy failed.', 'error'); }
   });
   
-  // Analytics modal
-  els.closeAnalytics.addEventListener('click', () => els.analyticsModal.close());
-  els.closeAnalyticsBtn.addEventListener('click', () => els.analyticsModal.close());
+  if (els.closeAnalytics) els.closeAnalytics.addEventListener('click', () => els.analyticsModal?.close());
+  if (els.closeAnalyticsBtn) els.closeAnalyticsBtn.addEventListener('click', () => els.analyticsModal?.close());
   
-  // Quick actions
-  els.exportRepo.addEventListener('click', exportRepository);
-  els.setupBackup.addEventListener('click', setupAutoBackup);
-  els.viewAnalytics.addEventListener('click', showAnalytics);
-  els.webdavMount.addEventListener('click', showWebDAV);
+  if (els.exportRepo) els.exportRepo.addEventListener('click', exportRepository);
+  if (els.setupBackup) els.setupBackup.addEventListener('click', setupAutoBackup);
+  if (els.viewAnalytics) els.viewAnalytics.addEventListener('click', showAnalytics);
+  if (els.webdavMount) els.webdavMount.addEventListener('click', showWebDAV);
   
   // Cloud explorer controls
   function closeDriveMenu() {
