@@ -2,160 +2,610 @@
 <html lang="en" data-theme="dark">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <meta name="theme-color" content="#0a0e0f">
-  <title>RepoDrive</title>
-  <link rel="stylesheet" href="./styles.css">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#081012">
+  <meta name="description" content="RepoDrive — The Ultimate Cloud Storage Powered by GitHub">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/logo-mark.png">
+  <title>RepoDrive 0.1.5 · Cloud Explorer</title>
+  <link rel="stylesheet" href="./styles.css?v=0.1.5.4-explorer">
 </head>
 <body>
-  <!-- Top Bar -->
-  <header class="topbar">
-    <a class="brand" href="./">RepoDrive</a>
+  <!-- Notification Permission -->
+  <div id="notificationPrompt" class="notification-prompt hidden">
+    <span>🔔 Enable notifications for real-time updates?</span>
+    <button id="enableNotifications" class="primary-btn">Enable</button>
+    <button id="dismissNotifications" class="link-btn">Dismiss</button>
+  </div>
+
+  <!-- Top Navigation -->
+  <header class="topbar glass">
+    <a class="brand" href="./" aria-label="RepoDrive home">
+      <img class="brand-logo" src="./assets/logo-header.png" alt="RepoDrive">
+      <span class="version pulse">0.1.5</span>
+    </a>
     <div class="top-actions">
+      <!-- Quick Actions -->
+      <button id="quickActionsBtn" class="icon-btn" title="Quick actions">⚡</button>
+      <button id="globalSearchBtn" class="icon-btn" title="Global search">🔍</button>
+      <button id="syncBtn" class="icon-btn hidden" title="Sync">🔄</button>
+      <button id="refreshBtn" class="icon-btn" title="Refresh repositories">⟳</button>
+      <button id="notificationsBtn" class="icon-btn" title="Notifications">🔔</button>
       <button id="themeToggle" class="icon-btn" title="Toggle theme">🌙</button>
       <span id="account" class="account"></span>
       <button id="logoutBtn" class="link-btn hidden">Sign out</button>
-      <button id="refreshBtn" class="icon-btn hidden" title="Refresh">⟳</button>
     </div>
   </header>
 
   <main class="shell">
-    <!-- Login -->
+    <!-- Login View -->
     <section id="loginView" class="login-view">
-      <div class="login-box">
-        <h1>RepoDrive</h1>
-        <p>GitHub-powered cloud storage</p>
-        <button id="loginBtn" class="primary-btn">Continue with GitHub</button>
-        <label class="session-option">
-          <input id="rememberSession" type="checkbox">
-          <span>Stay signed in</span>
-        </label>
+      <div class="hero fade-in">
+        <div class="eyebrow">🚀 REPODRIVE · 0.1.5</div>
+        <h1>Cloud storage <br><span class="gradient-text">redefined.</span></h1>
+        <p>Enterprise-grade cloud storage built on GitHub. <br>Upload, organize, share, collaborate, and automate — all from one place.</p>
+        <button id="loginBtn" class="primary-btn big pulse"><span class="gh">◉</span> Continue with GitHub <span>→</span></button>
+        <label class="session-option"><input id="rememberSession" type="checkbox"> <span><strong>Save session on this device</strong><small>Stay signed in so you don't need to authorize again on every visit.</small></span></label>
         <div id="loginHint" class="hint"></div>
+        <div class="security glass">
+          <b>🔒 End-to-end encryption available</b>
+          <span>• Files go straight to GitHub</span>
+          <span>• Minimal proxy only handles auth</span>
+          <span>• Zero-knowledge encryption option</span>
+        </div>
+      </div>
+      <div class="feature-grid glass">
+        <article><b>01</b><strong>📁 Smart Organization</strong><span>AI-powered auto-sort with custom rules</span></article>
+        <article><b>02</b><strong>🔍 Full-Text Search</strong><span>Search files, content, and metadata</span></article>
+        <article><b>03</b><strong>👥 Team Collaboration</strong><span>Real-time comments and sharing</span></article>
+        <article><b>04</b><strong>🔒 Zero-Knowledge Encryption</strong><span>Client-side encryption for privacy</span></article>
+        <article><b>05</b><strong>🔄 Auto-Sync</strong><span>Keep folders in sync automatically</span></article>
+        <article><b>06</b><strong>📊 Advanced Analytics</strong><span>Track usage, trends, and insights</span></article>
+        <article><b>07</b><strong>🤖 AI Assistant</strong><span>Smart file organization and tagging</span></article>
+        <article><b>08</b><strong>🌐 WebDAV Support</strong><span>Mount as a network drive</span></article>
       </div>
     </section>
 
-    <!-- App -->
+    <!-- App View -->
     <section id="appView" class="hidden">
-      <div class="app-layout">
-        <!-- Sidebar -->
-        <aside class="sidebar">
-          <div class="sidebar-header">
-            <h2>Repositories</h2>
-            <button id="newRepoBtn" class="icon-btn" title="New repository">+</button>
+      <!-- Dashboard Header -->
+      <div class="dashboard-header">
+        <div class="appbar">
+          <div>
+            <div class="eyebrow">📊 DASHBOARD</div>
+            <h2 id="workspaceTitle">Your GitHub workspace</h2>
+            <div id="syncStatus" class="sync-status hidden">
+              <span class="sync-dot"></span>
+              <span>Last synced: <span id="lastSyncTime">—</span></span>
+            </div>
           </div>
-          <input id="repoSearch" placeholder="Search repos…" class="search-input">
+          <div class="appbar-actions">
+            <button id="quickActionsDropdown" class="secondary-btn">⚡ Quick actions ▾</button>
+            <button id="installBtn" class="secondary-btn">Manage access ↗</button>
+            <button id="newRepoBtn" class="primary-btn">+ New repository</button>
+          </div>
+        </div>
+        <div id="alert" class="alert hidden"></div>
+
+        <!-- Stats Dashboard -->
+        <div class="stats-grid">
+          <div class="stat-card glass">
+            <span>📚 Repositories</span>
+            <b id="repoCount">—</b>
+            <small>Total accessible</small>
+          </div>
+          <div class="stat-card glass">
+            <span>🔒 Private</span>
+            <b id="privateCount">—</b>
+            <small>Private repos</small>
+          </div>
+          <div class="stat-card glass">
+            <span>💾 Storage Used</span>
+            <b id="storageTotal">—</b>
+            <small>GitHub reported</small>
+          </div>
+          <div class="stat-card glass">
+            <span>📁 Total Files</span>
+            <b id="fileCount">—</b>
+            <small>Across all repos</small>
+          </div>
+          <div class="stat-card glass">
+            <span>⚡ Recent Activity</span>
+            <b id="activityCount">0</b>
+            <small>Last 24 hours</small>
+          </div>
+          <div class="stat-card glass">
+            <span>👥 Collaborators</span>
+            <b id="collabCount">—</b>
+            <small>Total contributors</small>
+          </div>
+        </div>
+
+        <!-- Access Panel -->
+        <section id="accessPanel" class="access-panel glass hidden" aria-live="polite">
+          <div class="access-icon">✓</div>
+          <div class="access-copy">
+            <strong id="accessTitle">GitHub App access</strong>
+            <span id="accessText">Checking which repositories this installation can access…</span>
+          </div>
+          <a id="accessManage" class="secondary-btn" href="https://github.com/settings/installations" target="_blank" rel="noopener">Manage access ↗</a>
+        </section>
+
+        <!-- Global Search Bar -->
+        <div id="globalSearchBar" class="global-search glass hidden">
+          <input id="globalSearch" placeholder="🔍 Search across all files, repositories, and content..." autocomplete="off">
+          <button id="globalSearchExecute" class="primary-btn">Search</button>
+          <button id="globalSearchFilters" class="secondary-btn">Filters</button>
+          <button id="globalSearchClose" class="icon-btn">✕</button>
+        </div>
+
+        <!-- Quick Actions Dropdown -->
+        <div id="quickActionsMenu" class="quick-actions-menu hidden glass">
+          <button onclick="showAnalytics()">📊 Analytics Dashboard</button>
+          <button onclick="showWebDAV()">🌐 Mount as Drive</button>
+          <button onclick="exportRepository()">📦 Export Repository</button>
+          <button onclick="setupAutoBackup()">💾 Auto Backup</button>
+          <button onclick="generateReport()">📋 Generate Report</button>
+          <button onclick="showKeyboardShortcuts()">⌨️ Keyboard Shortcuts</button>
+        </div>
+
+
+          <!-- RepoDrive Cloud Explorer: Mixplorer-inspired file-manager workspace -->
+          <section id="cloudExplorer" class="cloud-explorer">
+            <aside class="drive-sidebar">
+              <div class="drive-side-head">
+                <div class="drive-caption">CLOUD STORAGE</div>
+                <button id="driveNewRepo" class="drive-icon" title="New repository">＋</button>
+              </div>
+              <div class="drive-search-wrap">
+                <span>⌕</span><input id="driveRepoSearch" placeholder="Filter repositories…" autocomplete="off">
+              </div>
+              <div class="drive-side-section">
+                <div class="drive-side-label">MY REPOSITORIES <span id="driveRepoCount">0</span></div>
+                <div id="driveRepoList" class="drive-repo-list"></div>
+              </div>
+              <div class="drive-side-footer">
+                <div class="drive-user"><span class="drive-avatar" id="driveAvatar">?</span><div><b id="driveUserName">GitHub</b><small id="driveUserMeta">Connected</small></div></div>
+                <button id="driveSignOut" class="drive-footer-btn">Sign out</button>
+              </div>
+            </aside>
+
+            <section class="drive-main">
+              <div class="drive-toolbar">
+                <button id="driveMenu" class="drive-icon drive-menu" title="Repositories" aria-label="Repositories" aria-expanded="false"><span class="mix-menu-glyph" aria-hidden="true"></span></button>
+                <div class="drive-breadcrumbs" id="driveBreadcrumbs"></div>
+                <div class="drive-toolbar-actions">
+                  <button id="driveBack" class="drive-icon" title="Back" aria-label="Back">‹</button>
+                  <button id="driveUp" class="drive-icon" title="Parent folder" aria-label="Parent folder">↑</button>
+                  <button id="driveRefresh" class="drive-icon" title="Refresh" aria-label="Refresh">⟳</button>
+                  <button id="driveUpload" class="drive-primary"><span class="mix-plus" aria-hidden="true">＋</span> Upload</button>
+                  <button id="driveMore" class="drive-icon" title="More actions">⋮</button>
+                </div>
+              </div>
+
+              <div class="drive-location">
+                <div>
+                  <div class="drive-location-title" id="driveRepoTitle">Select a repository</div>
+                  <div class="drive-location-meta" id="driveRepoMeta">Your GitHub repositories appear here like cloud drives.</div>
+                </div>
+                <div class="drive-location-actions">
+                  <button id="driveOpenGithub" class="drive-btn" disabled>↗ GitHub</button>
+                  <button id="driveShareRepo" class="drive-btn" disabled>⌯ Share</button>
+                </div>
+              </div>
+
+              <div id="driveDropZone" class="drive-drop-zone">
+                <div class="drive-drop-icon">⇧</div>
+                <div><b>Drop files here</b><span>Files are staged locally, then committed to GitHub.</span></div>
+              </div>
+
+              <div class="drive-file-toolbar">
+                <div class="drive-folder-title"><span id="drivePathIcon">⌂</span><b id="drivePathLabel">Repository root</b><span id="driveItemCount">0 items</span></div>
+                <div class="drive-file-actions">
+                  <input id="driveFileSearch" placeholder="Search this folder…" autocomplete="off">
+                  <select id="driveSort"><option value="name">Name</option><option value="type">Type</option><option value="size">Size</option><option value="recent">Recent</option></select>
+                  <button id="driveSelectAll" class="drive-btn">Select all</button>
+                </div>
+              </div>
+
+              <div id="driveFileGrid" class="drive-file-grid"></div>
+              <div id="driveEmpty" class="drive-empty hidden"><div class="drive-empty-icon">⌂</div><b>This folder is empty</b><span>Upload files to this repository to get started.</span><button id="driveEmptyUpload" class="drive-primary">＋ Upload files</button></div>
+
+              <div class="drive-statusbar">
+                <span id="driveStorageStatus">—</span><span>•</span><span id="driveBranchStatus">—</span><span>•</span><span id="driveSyncStatus">Ready</span>
+              </div>
+            </section>
+          </section>
+
+        <!-- Legacy repository picker retained for app compatibility; hidden in the MiX cloud UI. -->
+        <div class="repo-section glass repodrive-legacy-ui">
+          <div class="section-head">
+            <div>
+              <div class="eyebrow">01 · DESTINATION</div>
+              <h3>Choose a repository</h3>
+            </div>
+            <div class="section-actions">
+              <button id="reloadReposBtn" class="secondary-btn">⟳ Refresh</button>
+              <button id="filterReposBtn" class="secondary-btn">Filter</button>
+            </div>
+          </div>
+          <div class="repo-controls">
+            <input id="repoSearch" placeholder="Search repositories…" autocomplete="off">
+            <select id="repoSort">
+              <option value="updated">Recently updated</option>
+              <option value="name">Name</option>
+              <option value="size">Storage size</option>
+              <option value="private">Private first</option>
+              <option value="stars">Most starred</option>
+              <option value="forks">Most forked</option>
+            </select>
+          </div>
           <div id="repoList" class="repo-list"></div>
-          <div id="repoEmpty" class="empty hidden">No repositories found</div>
-          <div class="sidebar-footer">
-            <span id="repoCount">0</span> repos
-          </div>
-        </aside>
+          <div id="repoEmpty" class="empty hidden">No repositories found.</div>
+        </div>
 
-        <!-- Main -->
-        <main class="main-content">
-          <!-- Path bar -->
-          <div class="path-bar">
-            <span id="selectedPath" class="path-label">Select a repository</span>
-            <div class="path-actions">
-              <select id="branchSelect" class="branch-select">
-                <option>Select branch</option>
-              </select>
-              <input id="prefix" placeholder="Path prefix" class="prefix-input">
-              <label class="encrypt-toggle">
-                <input id="encryptToggle" type="checkbox"> 🔒
-              </label>
-              <button id="filePickerBtn" class="icon-btn" title="Upload files">↑</button>
+        <!-- Legacy workspace retained for app compatibility; hidden in the MiX cloud UI. -->
+        <section id="workspace" class="hidden repodrive-legacy-ui">
+          <!-- Selected Repo Header -->
+          <div class="selected-row glass">
+            <div>
+              <span class="eyebrow">📂 SELECTED REPOSITORY</span>
+              <strong id="selectedRepo"></strong>
+              <span id="selectedMeta"></span>
+              <div id="repoStatsBadges" class="repo-badges"></div>
+            </div>
+            <div>
+              <button id="changeRepoBtn" class="secondary-btn">Change</button>
+              <a id="githubRepoLink" class="secondary-btn" target="_blank" rel="noopener">Open on GitHub ↗</a>
+              <button id="shareRepoBtn" class="secondary-btn">Share</button>
+              <button id="watchRepoBtn" class="secondary-btn">👁️ Watch</button>
+              <button id="starRepoBtn" class="secondary-btn">⭐ Star</button>
+            </div>
+          </div>
+
+          <!-- View Controls -->
+          <div class="view-controls glass">
+            <button id="viewToggle" class="secondary-btn">Grid View</button>
+            <button id="showFavorites" class="secondary-btn">⭐ Favorites</button>
+            <button id="showRecent" class="secondary-btn">🕒 Recent</button>
+            <button id="showStarred" class="secondary-btn">⭐ Starred</button>
+            <button id="aiOrganizeBtn" class="secondary-btn">🤖 AI Organize</button>
+            <button id="batchRenameBtn" class="secondary-btn">✏️ Batch Rename</button>
+          </div>
+
+          <div class="grid-two">
+            <!-- Upload Section -->
+            <section class="card glass">
+              <div class="section-head">
+                <div><div class="eyebrow">02 · BRANCH</div><h3>Destination</h3></div>
+              </div>
+              <label>Branch<select id="branchSelect"></select></label>
+              <label>Path prefix (optional)<input id="prefix" placeholder="e.g. backups/phone"></label>
+              <div class="upload-options">
+                <label class="check"><input id="encryptToggle" type="checkbox"> 🔒 Encrypt uploads</label>
+                <label class="check"><input id="compressToggle" type="checkbox"> 📦 Compress files</label>
+                <label class="check"><input id="autoTagToggle" type="checkbox"> 🏷️ Auto-tag files</label>
+                <label class="check"><input id="webhookToggle" type="checkbox"> 🔔 Notify on upload</label>
+              </div>
+              <div class="rule-summary">
+                <span>Auto-sort rules</span>
+                <b id="ruleCount">— rules</b>
+                <button id="rulesBtn" class="link-btn">Edit</button>
+                <button id="suggestRulesBtn" class="link-btn">✨ Suggest</button>
+                <button id="importRulesBtn" class="link-btn">📥 Import</button>
+                <button id="exportRulesBtn" class="link-btn">📤 Export</button>
+              </div>
+            </section>
+
+            <section class="card glass">
+              <div class="section-head">
+                <div><div class="eyebrow">03 · ADD FILES</div><h3>Choose files or a folder</h3></div>
+              </div>
               <input id="filePicker" type="file" multiple hidden>
-            </div>
+              <input id="folderPicker" type="file" webkitdirectory directory multiple hidden>
+              <div class="pick-grid">
+                <button id="pickFiles" class="drop-btn glass"><b>📁 Files</b><span>Choose individual files</span></button>
+                <button id="pickFolder" class="drop-btn glass"><b>📂 Folder</b><span>Choose a directory</span></button>
+                <button id="pickFromCloud" class="drop-btn glass"><b>☁️ Cloud</b><span>Import from other services</span></button>
+                <button id="pickFromUrl" class="drop-btn glass"><b>🔗 URL</b><span>Upload from URL</span></button>
+              </div>
+              <div id="dropZone" class="drop-zone glass">📤 Drop files or a folder here</div>
+              <div id="uploadProgress" class="hidden">
+                <div class="progress-container">
+                  <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
+                  <div class="progress-label">0%</div>
+                </div>
+                <div id="uploadSpeed" class="upload-speed">Speed: —</div>
+                <div id="uploadETA" class="upload-eta">ETA: —</div>
+              </div>
+              <div id="selectionSummary" class="selection-summary">Nothing selected.</div>
+            </section>
           </div>
 
-          <!-- Upload progress -->
-          <div id="uploadProgress" class="upload-progress hidden">
-            <div class="progress-bar"><div class="progress-fill" style="width:0%"></div></div>
-            <span class="progress-label">0%</span>
-          </div>
-
-          <!-- Pending files -->
-          <div class="pending-section">
-            <div class="pending-header">
-              <span>Pending <span id="pendingCount" class="badge">0</span></span>
-              <div class="pending-actions">
-                <input id="commitMessage" placeholder="Commit message" class="commit-input">
-                <button id="commitBtn" class="primary-btn" disabled>Commit</button>
+          <!-- Pending Files -->
+          <section class="card glass upload-card">
+            <div class="section-head">
+              <div><div class="eyebrow">04 · REVIEW & COMMIT</div><h3>Pending files <span id="pendingCount" class="badge">0</span></h3></div>
+              <div>
+                <button id="clearSelection" class="secondary-btn">Clear</button>
+                <button id="exportPending" class="secondary-btn">📋 Export</button>
+                <button id="sortPending" class="secondary-btn">↕ Sort</button>
               </div>
             </div>
-            <div id="pendingList" class="pending-list empty">Drop files here or click ↑ to upload</div>
-            <div id="commitStatus" class="status"></div>
-          </div>
-
-          <!-- File browser -->
-          <div class="file-browser">
-            <div class="file-toolbar">
-              <input id="fileSearch" placeholder="Search files…" class="search-input">
-              <span id="fileCount" class="file-stats">0 files</span>
-              <span id="storageTotal" class="file-stats">—</span>
-              <div id="bulkBar" class="bulk-bar hidden">
-                <span id="bulkCount">0 selected</span>
-                <button id="bulkDelete" class="danger-btn">Delete</button>
-                <button id="bulkMove" class="secondary-btn">Move</button>
+            <div id="pendingList" class="pending-list empty">Select files to see the planned paths.</div>
+            <div class="commit-row">
+              <div class="commit-inputs">
+                <input id="commitMessage" maxlength="120" placeholder="Commit message (optional)">
+                <input id="commitCoauthors" placeholder="Co-authors (@username, @username)">
               </div>
+              <button id="commitBtn" class="primary-btn" disabled>📤 Commit batch →</button>
+            </div>
+            <div id="commitStatus" class="status" role="status" aria-live="polite"></div>
+          </section>
+
+          <!-- File Browser -->
+          <section class="card glass files-card">
+            <div class="section-head">
+              <div><div class="eyebrow">05 · REPOSITORY FILES</div><h3>Browse & manage</h3></div>
+              <div class="file-actions">
+                <input id="fileSearch" placeholder="Search files…">
+                <button id="refreshTreeBtn" class="secondary-btn">⟳</button>
+                <button id="showHidden" class="secondary-btn">👁️</button>
+                <button id="exportTree" class="secondary-btn">📥</button>
+                <button id="fileFilterBtn" class="secondary-btn">Filter</button>
+              </div>
+            </div>
+            <div class="storage-line">
+              <span id="treeSummary">—</span>
+              <span id="treeStorage">—</span>
+              <span id="treeLastUpdated">—</span>
+            </div>
+            <div id="bulkBar" class="bulk-bar hidden">
+              <span id="bulkCount">0 selected</span>
+              <select id="bulkFolder"></select>
+              <button id="bulkMove" class="secondary-btn">Move</button>
+              <button id="bulkDelete" class="secondary-btn danger-btn">Delete</button>
+              <button id="bulkDownload" class="secondary-btn">Download</button>
+              <button id="bulkShare" class="secondary-btn">Share</button>
+              <button id="bulkTag" class="secondary-btn">🏷️ Tag</button>
+              <button id="bulkRename" class="secondary-btn">✏️ Rename</button>
             </div>
             <div id="fileTree" class="file-tree"></div>
-            <div id="fileTreeEmpty" class="empty hidden">No files in this repository</div>
+            <div id="fileTreeEmpty" class="empty hidden">No files found.</div>
+            <div id="fileTreeLoading" class="empty hidden">Loading files…</div>
+          </section>
+
+          <!-- Quick Actions Bottom -->
+          <div class="quick-actions glass">
+            <button id="exportRepo" class="secondary-btn">📦 Export</button>
+            <button id="setupBackup" class="secondary-btn">💾 Backup</button>
+            <button id="viewAnalytics" class="secondary-btn">📊 Analytics</button>
+            <button id="webdavMount" class="secondary-btn">🌐 Mount</button>
+            <button id="generateReport" class="secondary-btn">📋 Report</button>
+            <button id="setupWebhook" class="secondary-btn">🔔 Webhook</button>
+            <button id="manageCollaborators" class="secondary-btn">👥 Collaborators</button>
+            <button id="viewActivity" class="secondary-btn">📈 Activity</button>
           </div>
-        </main>
+        </section>
       </div>
     </section>
   </main>
 
+  <!-- Modals -->
   <!-- Auth Dialog -->
-  <dialog id="authDialog">
-    <div class="dialog">
-      <h2>GitHub Authorization</h2>
-      <p>Enter this code on GitHub:</p>
-      <div id="deviceCode" class="device-code">------</div>
-      <div class="dialog-actions">
-        <button id="copyCode" class="secondary-btn">Copy</button>
-        <a id="verifyLink" class="primary-btn" target="_blank" rel="noopener">Open GitHub</a>
-      </div>
-      <div id="deviceStatus" class="status">Waiting…</div>
-      <button id="cancelAuth" class="link-btn">Cancel</button>
+  <dialog id="authDialog"><div class="dialog glass">
+    <div class="eyebrow">🔐 GITHUB DEVICE AUTH</div>
+    <h2>Approve RepoDrive in GitHub</h2>
+    <p>Open GitHub, enter this one-time code, then return here. The page will continue automatically.</p>
+    <div id="deviceCode" class="device-code pulse">------</div>
+    <div class="dialog-actions">
+      <button id="copyCode" class="secondary-btn">📋 Copy code</button>
+      <a id="verifyLink" class="primary-btn" target="_blank" rel="noopener">Open GitHub →</a>
     </div>
-  </dialog>
+    <div id="deviceStatus" class="status">Waiting…</div>
+    <button id="cancelAuth" class="link-btn">Cancel</button>
+  </div></dialog>
 
   <!-- Create Repo Dialog -->
-  <dialog id="repoDialog">
-    <div class="dialog">
-      <h2>New Repository</h2>
-      <input id="newRepoName" placeholder="Repository name" class="repo-name-input">
-      <label class="check"><input id="newRepoPrivate" type="checkbox" checked> Private</label>
-      <div id="repoCreateStatus" class="status"></div>
-      <div class="dialog-actions">
-        <button id="cancelRepo" class="secondary-btn">Cancel</button>
-        <button id="createRepo" class="primary-btn">Create</button>
-      </div>
+  <dialog id="repoDialog"><div class="dialog glass">
+    <div class="eyebrow">📦 NEW REPOSITORY</div>
+    <h2>Create a repository</h2>
+    <label>Name<input id="newRepoName" placeholder="my-cloud-files" maxlength="100"></label>
+    <label>Description<input id="newRepoDesc" placeholder="Created with RepoDrive Ultimate" maxlength="255"></label>
+    <label>Template<select id="newRepoTemplate">
+      <option value="">None</option>
+      <option value="readme">README only</option>
+      <option value="gitignore">Gitignore + README</option>
+      <option value="license">License + README</option>
+    </select></label>
+    <label class="check"><input id="newRepoPrivate" type="checkbox" checked> 🔒 Private repository</label>
+    <label class="check"><input id="newRepoInit" type="checkbox" checked> Initialize with README</label>
+    <div id="repoCreateStatus" class="status"></div>
+    <div class="dialog-actions">
+      <button id="cancelRepo" class="secondary-btn">Cancel</button>
+      <button id="createRepo" class="primary-btn">Create repository →</button>
     </div>
-  </dialog>
+  </div></dialog>
+
+  <!-- Rules Dialog -->
+  <dialog id="rulesDialog"><div class="dialog wide glass">
+    <div class="eyebrow">🧠 AUTO-SORT RULES</div>
+    <h2>Sorting rules</h2>
+    <p>Rules are evaluated top-to-bottom. Custom rules are saved locally.</p>
+    <div class="rule-form">
+      <input id="rulePattern" placeholder="Pattern (regex)">
+      <input id="ruleFolder" placeholder="Folder name">
+      <button id="addRule" class="secondary-btn">Add</button>
+    </div>
+    <div class="rule-presets">
+      <button onclick="loadPreset('default')">Default</button>
+      <button onclick="loadPreset('developer')">Developer</button>
+      <button onclick="loadPreset('designer')">Designer</button>
+      <button onclick="loadPreset('media')">Media</button>
+    </div>
+    <div id="rulesList" class="rules-list"></div>
+    <div class="dialog-actions">
+      <button id="resetRules" class="secondary-btn">Reset defaults</button>
+      <button id="closeRules" class="primary-btn">Done</button>
+    </div>
+  </div></dialog>
 
   <!-- Preview Modal -->
-  <dialog id="previewModal">
-    <div class="dialog wide">
-      <div class="preview-header">
-        <h3 id="previewTitle">File</h3>
-        <div>
-          <button id="downloadPreview" class="icon-btn" title="Download">↓</button>
-          <button id="sharePreview" class="icon-btn" title="Share">🔗</button>
-          <button id="closePreview" class="icon-btn">✕</button>
-        </div>
+  <dialog id="previewModal"><div class="dialog wide glass">
+    <div class="dialog-header">
+      <h3 id="previewTitle">File Preview</h3>
+      <div>
+        <button type="button" id="downloadPreview" class="icon-btn" title="Download">↓</button>
+        <button type="button" id="sharePreview" class="icon-btn" title="Share">↗</button>
+        <button type="button" id="historyPreview" class="icon-btn" title="History">◷</button>
+        <button type="button" id="closePreview" class="icon-btn" title="Close preview">✕</button>
       </div>
-      <div id="previewContent"></div>
     </div>
-  </dialog>
+    <div id="previewContent"></div>
+    <div class="dialog-actions">
+      <button type="button" id="closePreviewBtn" class="primary-btn">Close</button>
+    </div>
+  </div></dialog>
+
+  <!-- Search Results Dialog -->
+  <dialog id="searchResultsModal"><div class="dialog wide glass">
+    <div class="dialog-header">
+      <h3>🔍 Search Results</h3>
+      <button id="closeSearchResults" class="icon-btn">✕</button>
+    </div>
+    <div id="searchResultsList"></div>
+  </div></dialog>
+
+  <!-- History Dialog -->
+  <dialog id="historyModal"><div class="dialog wide glass">
+    <div class="dialog-header">
+      <h3 id="historyTitle">File History</h3>
+      <button id="closeHistory" class="icon-btn">✕</button>
+    </div>
+    <div id="historyList"></div>
+    <div class="dialog-actions">
+      <button id="closeHistoryBtn" class="primary-btn">Close</button>
+    </div>
+  </div></dialog>
+
+  <!-- Share Dialog -->
+  <dialog id="shareModal"><div class="dialog glass">
+    <div class="dialog-header">
+      <h3>🔗 Share</h3>
+      <button id="closeShare" class="icon-btn">✕</button>
+    </div>
+    <div id="shareContent"></div>
+    <div class="dialog-actions">
+      <button id="copyShareLink" class="primary-btn">Copy link</button>
+      <button id="closeShareBtn" class="secondary-btn">Close</button>
+    </div>
+  </div></dialog>
+
+  <!-- WebDAV Dialog -->
+  <dialog id="webdavModal"><div class="dialog glass">
+    <div class="dialog-header">
+      <h3>🌐 WebDAV Connection</h3>
+      <button id="closeWebdav" class="icon-btn">✕</button>
+    </div>
+    <p>Connect to RepoDrive as a network drive:</p>
+    <div class="webdav-url glass">
+      <code id="webdavUrl"></code>
+      <button id="copyWebdavUrl" class="secondary-btn">📋</button>
+    </div>
+    <div class="webdav-instructions">
+      <h4>📖 Mounting Instructions:</h4>
+      <ul>
+        <li><strong>Windows:</strong> <code>net use Z: "http://..."</code></li>
+        <li><strong>Mac:</strong> Finder → Go → Connect to Server</li>
+        <li><strong>Linux:</strong> <code>mount -t davfs http://... /mnt/repodrive</code></li>
+      </ul>
+    </div>
+    <div class="dialog-actions">
+      <button id="closeWebdavBtn" class="primary-btn">Close</button>
+    </div>
+  </div></dialog>
+
+  <!-- Analytics Dialog -->
+  <dialog id="analyticsModal"><div class="dialog wide glass">
+    <div class="dialog-header">
+      <h3>📊 Analytics Dashboard</h3>
+      <button id="closeAnalytics" class="icon-btn">✕</button>
+    </div>
+    <div id="analyticsContent">
+      <div class="analytics-grid">
+        <div class="analytics-card glass"><span>Total Files</span><b id="analyticsFiles">—</b></div>
+        <div class="analytics-card glass"><span>Total Size</span><b id="analyticsSize">—</b></div>
+        <div class="analytics-card glass"><span>File Types</span><b id="analyticsTypes">—</b></div>
+        <div class="analytics-card glass"><span>Recent Changes</span><b id="analyticsChanges">—</b></div>
+        <div class="analytics-card glass"><span>Largest File</span><b id="analyticsLargest">—</b></div>
+        <div class="analytics-card glass"><span>Average Size</span><b id="analyticsAverage">—</b></div>
+      </div>
+      <div id="analyticsChart" class="analytics-chart glass"></div>
+      <div id="analyticsActivity" class="analytics-activity"></div>
+    </div>
+    <div class="dialog-actions">
+      <button id="exportAnalytics" class="secondary-btn">📥 Export</button>
+      <button id="closeAnalyticsBtn" class="primary-btn">Close</button>
+    </div>
+  </div></dialog>
+
+  <!-- Collaborators Dialog -->
+  <dialog id="collabModal"><div class="dialog glass">
+    <div class="dialog-header">
+      <h3>👥 Collaborators</h3>
+      <button id="closeCollab" class="icon-btn">✕</button>
+    </div>
+    <div id="collabList"></div>
+    <div class="collab-add">
+      <input id="collabUsername" placeholder="@username">
+      <select id="collabPermission">
+        <option value="pull">Read</option>
+        <option value="push" selected>Write</option>
+        <option value="admin">Admin</option>
+      </select>
+      <button id="addCollaborator" class="primary-btn">Add</button>
+    </div>
+    <div class="dialog-actions">
+      <button id="closeCollabBtn" class="primary-btn">Done</button>
+    </div>
+  </div></dialog>
+
+  <!-- Activity Dialog -->
+  <dialog id="activityModal"><div class="dialog wide glass">
+    <div class="dialog-header">
+      <h3>📈 Activity Feed</h3>
+      <button id="closeActivity" class="icon-btn">✕</button>
+    </div>
+    <div id="activityList"></div>
+    <div class="dialog-actions">
+      <button id="closeActivityBtn" class="primary-btn">Close</button>
+    </div>
+  </div></dialog>
+
+  <!-- Keyboard Shortcuts Dialog -->
+  <dialog id="shortcutsModal"><div class="dialog glass">
+    <div class="dialog-header">
+      <h3>⌨️ Keyboard Shortcuts</h3>
+      <button id="closeShortcuts" class="icon-btn">✕</button>
+    </div>
+    <div class="shortcuts-grid">
+      <div><kbd>Ctrl+U</kbd><span>Upload files</span></div>
+      <div><kbd>Ctrl+Enter</kbd><span>Commit batch</span></div>
+      <div><kbd>Ctrl+F</kbd><span>Search files</span></div>
+      <div><kbd>Ctrl+Shift+F</kbd><span>Global search</span></div>
+      <div><kbd>Ctrl+E</kbd><span>Export repository</span></div>
+      <div><kbd>Ctrl+S</kbd><span>Sync</span></div>
+      <div><kbd>Esc</kbd><span>Close modal</span></div>
+      <div><kbd>Ctrl+Shift+B</kbd><span>Toggle bulk mode</span></div>
+    </div>
+  </div></dialog>
 
   <!-- Toast -->
-  <div id="toast" class="toast"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="./config.js"></script>
-  <script src="./app.js"></script>
+  <script src="./app.js?v=0.1.5.4-explorer"></script>
 </body>
 </html>
